@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FireNode Main Server Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>FireNode Main Server Dashboard</h1>
+      <p>Main RPi view for USB cameras, MLX90640 thermal camera, ESP32 sensor data, chainsaw alerts, and human detection from all nodes.</p>
+    </div>
+    <div class="header-badges">
+      <span id="roleBadge" class="badge blue">Role: loading</span>
+      <span id="ipBadge" class="badge">IP: loading</span>
+      <span id="healthBadge" class="badge">Loading</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-button active" data-tab="dashboardTab" onclick="showTab('dashboardTab')">Dashboard</button>
+    <button class="tab-button" data-tab="nodeTab" onclick="showTab('nodeTab')">Node Detail</button>
+    <button class="tab-button" data-tab="settingsTab" onclick="showTab('settingsTab')">Settings</button>
+    <button class="tab-button" data-tab="toolsTab" onclick="showTab('toolsTab')">Tools</button>
+  </nav>
+
+  <main class="wrap">
+    <section class="card wide node-identity">
+      <div>
+        <div class="label">This RPi Node ID</div>
+        <h2 id="nodeName">Loading...</h2>
+        <div class="pill-row">
+          <span id="baseUrl" class="pill">Web GUI</span>
+          <span id="esp32Badge" class="pill warn">ESP32 not selected</span>
+          <span id="cameraBadge" class="pill">USB cameras</span>
+          <span id="thermalBadge" class="pill">Thermal</span>
+          <span id="chainsawBadge" class="pill">Chainsaw detector</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="dashboardTab" class="tab-panel active">
+      <section class="grid4">
+        <div class="card stat"><div class="label">Remote Nodes</div><div id="nodeCountVal" class="value">3</div><span class="badge">Fixed: 3 remote nodes</span></div>
+        <div class="card stat"><div class="label">Active Alerts</div><div id="activeAlertVal" class="value">--</div><span id="activeAlertBadge" class="badge">Chainsaw / Human / Smoke</span></div>
+        <div class="card stat"><div class="label">Local Thermal Human</div><div id="thermalHumanVal" class="value">--</div><span id="thermalTempBadge" class="badge">Max: --</span></div>
+        <div class="card stat"><div class="label">ESP32 Connection</div><div id="esp32Status" class="value small">Not selected</div><span id="esp32Fetch" class="badge">Fetch: --</span></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <h2>All Video Streams</h2>
+            <p class="muted">Includes this main server's USB webcams and thermal stream, plus the three remote node streams after scanning/adding node IPs.</p>
+          </div>
+          <button onclick="refreshNow()">Refresh Now</button>
+        </div>
+        <div id="allVideos" class="video-grid"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Sensor Data Per Node</h2>
+          <span class="muted">Temperature, humidity, smoke, PIR, thermal human, chainsaw status</span>
+        </div>
+        <div id="sensorCards" class="sensor-grid"></div>
+      </section>
+
+      <section class="card">
+        <h2>Recent Alerts</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Node</th><th>Source</th><th>Event</th><th>Severity</th><th>Message</th></tr></thead>
+            <tbody id="alertRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Recent Recordings</h2>
+          <button onclick="loadRecordings()">Refresh Recordings</button>
+        </div>
+        <div id="recordingCards" class="recording-grid"></div>
+      </section>
+    </section>
+
+    <section id="nodeTab" class="tab-panel">
+      <section class="card">
+        <div class="section-header">
+          <h2>Node Detail View</h2>
+          <label class="select-label">Choose Node
+            <select id="nodeSelect" onchange="renderSelectedNode()"></select>
+          </label>
+        </div>
+        <div id="nodeDetail" class="node-detail"></div>
+      </section>
+    </section>
+
+    <section id="settingsTab" class="tab-panel">
+      <section class="two-col">
+        <div class="card">
+          <h2>Main / Node Settings</h2>
+          <div class="form-grid">
+            <label>Role
+              <select id="roleSelect">
+                <option value="server">Main Server</option>
+                <option value="node">Node</option>
+              </select>
+            </label>
+            <label>System Data Mode
+              <select id="operationModeInput">
+                <option value="live">Live Mode</option>
+                <option value="simulation">Simulation Mode</option>
+              </select>
+            </label>
+            <label>Selected ESP32 IP
+              <input id="esp32IpInput" placeholder="Example: 192.168.9.112">
+            </label>
+            <label>ESP32 Scan Prefix
+              <input id="esp32PrefixInput" placeholder="auto or 192.168.9">
+            </label>
+            <label>RPi Node Scan Prefix
+              <input id="nodePrefixInput" placeholder="auto or 192.168.9">
+            </label>
+            <label>Server Refresh Seconds
+              <input id="serverRefreshInput" type="number" min="1" max="30" step="1">
+            </label>
+            <label>Remote Node IPs for Server Mode
+              <textarea id="remoteIpsInput" rows="5" placeholder="Exactly 3 remote RPi IPs, one per line. Example:
+192.168.0.5
+192.168.0.6
+192.168.0.7"></textarea>
+            </label>
+          </div>
+          <p class="muted">Live Mode pulls data from the 3 remote RPi node IPs. Simulation Mode shows 3 simulated remote video streams and sensor cards so you can demo the dashboard without the other RPis.</p>
+          <div class="button-row">
+            <button onclick="scanESP32()">Scan ESP32 FireNodes</button>
+            <button onclick="scanNodes()">Scan RPi Nodes</button>
+          </div>
+          <div id="esp32Results" class="result-list"></div>
+          <div id="nodeResults" class="result-list"></div>
+        </div>
+
+        <div class="card">
+          <h2>USB Camera Settings</h2>
+          <div class="form-grid">
+            <label>Enable USB Cameras
+              <select id="cameraEnabledInput">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </label>
+            <label>Camera Device Indexes
+              <input id="camIndexesInput" placeholder="0 or 0,2">
+            </label>
+            <label>Camera Width
+              <input id="camWidthInput" type="number" min="160" step="1">
+            </label>
+            <label>Camera Height
+              <input id="camHeightInput" type="number" min="120" step="1">
+            </label>
+            <label>Camera FPS
+              <input id="camFpsInput" type="number" min="1" max="30" step="1">
+            </label>
+            <label>JPEG Quality
+              <input id="camQualityInput" type="number" min="30" max="95" step="1">
+            </label>
+          </div>
+          <p class="muted">Example: if the main server has two webcams at /dev/video0 and /dev/video2, enter <code>0,2</code>.</p>
+        </div>
+      </section>
+
+      <section class="two-col">
+        <div class="card">
+          <h2>MLX90640 Thermal Settings</h2>
+          <div class="form-grid">
+            <label>Enable Thermal Camera
+              <select id="thermalEnabledInput">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </label>
+            <label>Simulation Mode
+              <select id="thermalSimInput">
+                <option value="false">Sensor Mode</option>
+                <option value="true">Simulation</option>
+              </select>
+            </label>
+            <label>I2C Address
+              <input id="thermalAddressInput" placeholder="0x33">
+            </label>
+            <label>Refresh Rate Hz
+              <select id="thermalRefreshInput">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <label>Display Min °C
+              <input id="thermalDisplayMinInput" type="number" step="0.1">
+            </label>
+            <label>Display Max °C
+              <input id="thermalDisplayMaxInput" type="number" step="0.1">
+            </label>
+            <label>Human Min Temp °C
+              <input id="thermalHumanMinInput" type="number" step="0.1">
+            </label>
+            <label>Human Max Temp °C
+              <input id="thermalHumanMaxInput" type="number" step="0.1">
+            </label>
+            <label>Min Above Ambient °C
+              <input id="thermalDeltaInput" type="number" step="0.1">
+            </label>
+            <label>Min Blob Pixels
+              <input id="thermalBlobInput" type="number" step="1">
+            </label>
+            <label>Rotate
+              <select id="thermalRotateInput">
+                <option value="0">0°</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
+            </label>
+            <label>Mirror
+              <select id="thermalMirrorInput">
+                <option value="none">None</option>
+                <option value="x">Mirror X</option>
+                <option value="y">Mirror Y</option>
+                <option value="xy">Mirror X + Y</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Wi-Fi Settings Reference</h2>
+          <p class="muted">The GUI stores Wi-Fi credentials and shows the exact terminal commands to apply them. It does not automatically change Wi-Fi because that can disconnect the RPi while you are accessing it remotely.</p>
+          <div class="form-grid">
+            <label>Wi-Fi SSID
+              <input id="wifiSsidInput" placeholder="Your Wi-Fi name">
+            </label>
+            <label>Wi-Fi Password
+              <input id="wifiPasswordInput" type="password" placeholder="Your Wi-Fi password">
+            </label>
+            <label>Country
+              <input id="wifiCountryInput" placeholder="PH">
+            </label>
+            <label>Interface
+              <input id="wifiInterfaceInput" placeholder="wlan0">
+            </label>
+          </div>
+          <div class="button-row">
+            <button onclick="showWifiCommands()">Show Apply Commands</button>
+            <button onclick="saveSettings()" class="primary">Save All Settings</button>
+          </div>
+          <pre id="wifiCommands" class="json small-json"></pre>
+        </div>
+      </section>
+
+      <button onclick="saveSettings()" class="primary full">Save All Settings</button>
+    </section>
+
+    <section id="toolsTab" class="tab-panel">
+      <section class="two-col">
+        <div class="card">
+          <h2>Quick Controls</h2>
+          <div class="button-row">
+            <button onclick="startDetector()" class="ok">Start Chainsaw Detection</button>
+            <button onclick="stopDetector()" class="danger">Stop Chainsaw Detection</button>
+          </div>
+          <div class="button-row">
+            <button onclick="refreshNow()">Refresh Dashboard</button>
+            <button onclick="loadMicDevices()">Refresh USB Mic List</button>
+          </div>
+          <h3>USB Mic Devices</h3>
+          <div id="micDevices" class="result-list"></div>
+        </div>
+
+        <div class="card">
+          <h2>Audio File Chainsaw Test</h2>
+          <div class="form-grid single">
+            <label>Folder Path
+              <input id="browsePathInput" placeholder="test_audio, /home/pi, /media, /mnt">
+            </label>
+          </div>
+          <div class="button-row">
+            <button onclick="browseAudio()">Open Folder</button>
+            <button onclick="browseAudio('test_audio')">Included Test Audio</button>
+          </div>
+          <div id="audioBrowser" class="browser"></div>
+          <div id="analysisResult" class="json small-json"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Local /api/node-data JSON</h2>
+        <pre id="jsonBox" class="json">Loading...</pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

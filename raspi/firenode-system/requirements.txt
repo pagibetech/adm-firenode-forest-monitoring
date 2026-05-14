@@ -1,0 +1,10 @@
+# Most packages are installed through apt for Raspberry Pi OS Legacy 32-bit.
+# The setup script creates a venv with --system-site-packages so apt-installed numpy/opencv/PIL are reused.
+Flask>=2.0
+requests>=2.25
+pyserial>=3.5
+sounddevice>=0.4
+cffi>=1.15
+Pillow>=8.0
+adafruit-blinka
+adafruit-circuitpython-mlx90640

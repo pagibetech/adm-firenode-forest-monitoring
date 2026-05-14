@@ -1,0 +1,58 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local runtime state
+venv/
+logs/
+media/
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+
+# Build outputs
+.pio/
+dist/
+build/
+*.egg-info/
+
+# Raw reference bundles kept in the workspace but not in the clean code baseline
+*.zip
+*.mp4
+Details-protoLORA.pdf
+FireDiagram.png
+/PICS/
+/ESP/
+/RPI/
+/firenode_rpi_system/
+/firenode_rpi_system_main/
+/mlx90640_human_test/
+
+# Canonical lowercase repo folders must remain tracked even on case-insensitive filesystems.
+!/raspi/
+!/raspi/**
+!/firmware/
+!/firmware/**
+
+# Re-ignore runtime/generated files inside canonical folders after the allow-list above.
+/raspi/**/__pycache__/
+/raspi/**/.DS_Store
+/raspi/**/*.py[cod]
+/raspi/**/venv/
+/raspi/**/logs/
+/raspi/**/media/
+/raspi/**/*.db
+/raspi/**/*.sqlite
+/raspi/**/*.sqlite3
+/raspi/**/*.csv
+/firmware/**/.pio/
+/firmware/**/build/
+
+# Local scratch
+.env
+.env.*
+tmp/
