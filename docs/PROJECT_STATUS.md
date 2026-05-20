@@ -11,13 +11,33 @@ Repository is synchronized with GitHub main.
 - ESP32 LoRa gateway build passed
 
 ## Next Incomplete Task
-Hardware Bench Validation Phase
+Run automated Raspberry Pi deployment from the MacBook in simulation mode, then validate Flask/API/stream placeholders on the four RPis.
 
 ## Immediate Goal
-Prepare and validate the system on actual hardware before additional feature implementation.
+Deploy the Raspberry Pi web app to the four target RPis without requiring ESP32/LoRa hardware yet.
+
+## Current Deployment Support
+- `scripts/deploy_main_server.sh`
+- `scripts/deploy_node.sh`
+- `scripts/deploy_all_rpis.sh`
+- `docs/deployment/rpi_automated_deployment.md`
+
+Targets:
+- Main Server: `192.168.9.51`
+- Node 1: `192.168.9.52`
+- Node 2: `192.168.9.53`
+- Node 3: `192.168.9.54`
+
+Default mode:
+- SSH key auth using `~/admfire`
+- SSH user `betech`
+- simulation mode enabled
+- manual start by default
+- optional systemd service file created but not enabled unless requested
 
 ## Do Not Start Yet
 - Major architecture refactor
 - Camera/thermal integration changes
 - Dashboard redesign
 - Multi-node live integration changes
+- ESP32/LoRa hardware validation

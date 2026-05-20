@@ -16,7 +16,22 @@ Current known validation state:
 - ESP32 LoRa gateway build passed
 
 Current next incomplete milestone:
-Hardware Bench Validation Phase
+Automated Raspberry Pi deployment phase in simulation mode
 
 Current operating rule:
 Continue only from the next incomplete task. Do not start new architecture work until workflow memory, workbook, and status files are updated.
+
+Current deployment targets:
+- 192.168.9.51 = Main Server
+- 192.168.9.52 = Node 1
+- 192.168.9.53 = Node 2
+- 192.168.9.54 = Node 3
+
+Current deployment mode:
+- MacBook-run SSH deployment using key `~/admfire`
+- SSH user `betech`
+- ESP32/LoRa hardware validation paused
+- Raspberry Pi app deployed in simulation mode
+
+Latest completed task:
+- Added automated RPi deployment scripts and beginner deployment guide.
