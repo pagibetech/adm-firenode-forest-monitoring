@@ -321,12 +321,14 @@ ls /dev/video*
 
 Try changing Camera Device Indexes in Settings.
 
-If `/dev/video0` exists but the dashboard says `Camera frame read failed`, test the same MJPG/V4L2 mode used by the app:
+If `/dev/video0` exists but the dashboard says `Camera frame read failed`, or the image is corrupted/unclear, test the same low-bandwidth MJPG/V4L2 mode used by the app:
 
 ```bash
 cd /home/betech/admfire/raspi/firenode-system
-./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 320 --height 240 --fps 10
 ```
+
+On Raspberry Pi 3B, USB bandwidth or camera power can corrupt MJPG frames. Try lower camera settings first before replacing code or hardware.
 
 Expected result:
 
@@ -341,8 +343,12 @@ The app defaults are:
 {
   "camera_backend": "V4L2",
   "camera_fourcc": "MJPG",
-  "camera_open_warmup_frames": 5,
-  "camera_retry_on_failed_read": true
+  "camera_open_warmup_frames": 10,
+  "camera_retry_on_failed_read": true,
+  "camera_width": 320,
+  "camera_height": 240,
+  "camera_fps": 10,
+  "camera_jpeg_quality": 55
 }
 ```
 

@@ -37,6 +37,7 @@ Latest completed task:
 - Updated automated RPi deployment scripts for parallel default deployment, sequential mode, single-target mode, per-RPi logs, pass/fail summary, and deployment-role config labels.
 - Main server deployment is successful and dashboard/API are working on `192.168.9.51`.
 - Added live USB camera MJPG/V4L2 capture support after `/dev/video0` opened but default OpenCV reads failed.
+- Lowered RPi 3B USB camera defaults to `320x240`, `10 FPS`, JPEG quality `55`, MJPG, and `10` warmup frames after corrupt MJPG frame warnings.
 
 Next exact command:
 - Deploy the camera fix to the main server only: `./scripts/deploy_all_rpis.sh --target 192.168.9.51 --skip-setup`

@@ -61,9 +61,10 @@ http://<main-rpi-ip>:8090
 
 ```bash
 cd /home/betech/admfire/raspi/firenode-system
-./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 320 --height 240 --fps 10
 ```
 
+- If the image is corrupted/unclear, keep lower camera settings first because Raspberry Pi 3B USB bandwidth or camera power may be limited.
 - Confirm all four daytime camera feeds are visible on the main dashboard.
 - Trigger or simulate a chainsaw event.
 - Confirm the dashboard alert appears.

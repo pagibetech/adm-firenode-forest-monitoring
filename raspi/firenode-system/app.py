@@ -105,12 +105,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "camera_device_indexes": [0],
     "camera_backend": "V4L2",
     "camera_fourcc": "MJPG",
-    "camera_open_warmup_frames": 5,
+    "camera_open_warmup_frames": 10,
     "camera_retry_on_failed_read": True,
-    "camera_width": 640,
-    "camera_height": 480,
+    "camera_width": 320,
+    "camera_height": 240,
     "camera_fps": 10,
-    "camera_jpeg_quality": 70,
+    "camera_jpeg_quality": 55,
 
     # Local MLX90640 thermal camera. It can fall back to simulation if the sensor/library is unavailable.
     "thermal_enabled": True,
@@ -786,8 +786,8 @@ def _load_font(size: int, bold: bool = False):
 def make_sim_video_jpeg(slot: int) -> bytes:
     if Image is None or ImageDraw is None:
         return b""
-    width = int(cfg.get("camera_width", 640) or 640)
-    height = int(cfg.get("camera_height", 480) or 480)
+    width = int(cfg.get("camera_width", 320) or 320)
+    height = int(cfg.get("camera_height", 240) or 240)
     width = max(320, min(width, 1280))
     height = max(240, min(height, 720))
     t = time.time()
@@ -820,7 +820,7 @@ def make_sim_video_jpeg(slot: int) -> bytes:
     draw.text((width - bw - 6, 25), badge, fill=(255, 255, 255), font=small_font)
     draw.text((18, height - 34), "This is a placeholder stream for testing the main dashboard without remote RPis.", fill=(210, 220, 235), font=tiny_font)
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=int(cfg.get("camera_jpeg_quality", 70) or 70))
+    img.save(buf, format="JPEG", quality=int(cfg.get("camera_jpeg_quality", 55) or 55))
     return buf.getvalue()
 
 

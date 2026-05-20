@@ -22,6 +22,7 @@ Fix live USB webcam capture on the main server without changing thermal, simulat
 - Default OpenCV capture read fails.
 - `cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)` with MJPG, 640x480, 25 FPS works manually.
 - The app now supports configurable `camera_backend`, `camera_fourcc`, `camera_open_warmup_frames`, and `camera_retry_on_failed_read`.
+- Current RPi 3B stability defaults are `320x240`, `10 FPS`, JPEG quality `55`, MJPG, and `10` warmup frames because higher settings can show corrupt MJPG frames when USB bandwidth or power is limited.
 
 ## Current Deployment Support
 - `scripts/deploy_main_server.sh`

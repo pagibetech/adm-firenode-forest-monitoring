@@ -309,13 +309,15 @@ curl -I http://192.168.9.51:8090/
 
 ## Live USB Camera MJPG/V4L2 Check
 
-Use this when `/dev/video0` exists but the dashboard reports `Camera frame read failed`.
+Use this when `/dev/video0` exists but the dashboard reports `Camera frame read failed`, or the image is corrupted/unclear.
 
 ```bash
 ssh -i ~/admfire betech@192.168.9.51
 cd /home/betech/admfire/raspi/firenode-system
-./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 320 --height 240 --fps 10
 ```
+
+For Raspberry Pi 3B, use lower camera settings first because USB bandwidth or camera power may be limited. Current safe defaults are `320x240`, `10 FPS`, JPEG quality `55`, MJPG, and `10` warmup frames.
 
 Expected:
 

@@ -33,7 +33,7 @@ Main server is deployed successfully at `192.168.9.51`; dashboard/API are workin
 - Manual start on each RPi with `/home/betech/admfire/raspi/firenode-system/run.sh`.
 - API checks against `/api/status`, `/api/config`, `/api/node-data`, `/api/server-dashboard`, and `/api/lora/status`.
 - Stream placeholder checks against `/video_feed` and main `/thermal.png`.
-- Main server camera test: `./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25`.
+- If frames are corrupted/unclear, use the lower RPi 3B defaults first: `./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 320 --height 240 --fps 10`.
 - Dashboard camera route: `curl -I --max-time 5 http://192.168.9.51:8090/video_feed`.
 
 ## Next Exact Command

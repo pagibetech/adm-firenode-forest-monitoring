@@ -106,9 +106,9 @@ class CameraStream:
 
     def _placeholder(self, text: str = "Camera unavailable") -> Optional[bytes]:
         cfg = self.get_config()
-        width = max(320, min(int(cfg.get("camera_width", 640) or 640), 1280))
-        height = max(240, min(int(cfg.get("camera_height", 480) or 480), 720))
-        quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 70) or 70)))
+        width = max(320, min(int(cfg.get("camera_width", 320) or 320), 1280))
+        height = max(240, min(int(cfg.get("camera_height", 240) or 240), 720))
+        quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 55) or 55)))
         device_index = int(cfg.get("camera_device_index", 0))
 
         if cv2 is None or np is None:
@@ -137,9 +137,9 @@ class CameraStream:
         if Image is None or ImageDraw is None:
             return self._placeholder("Pillow/PIL is not installed")
         cfg = self.get_config()
-        width = max(320, min(int(cfg.get("camera_width", 640) or 640), 1280))
-        height = max(240, min(int(cfg.get("camera_height", 480) or 480), 720))
-        quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 70) or 70)))
+        width = max(320, min(int(cfg.get("camera_width", 320) or 320), 1280))
+        height = max(240, min(int(cfg.get("camera_height", 240) or 240), 720))
+        quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 55) or 55)))
         device_index = int(cfg.get("camera_device_index", 0))
         t = time.time()
 
@@ -188,8 +188,8 @@ class CameraStream:
                         "error": None,
                         "frames": int(self.status.get("frames", 0)) + 1,
                         "device_index": int(cfg.get("camera_device_index", 0)),
-                        "width": int(cfg.get("camera_width", 640) or 640),
-                        "height": int(cfg.get("camera_height", 480) or 480),
+                        "width": int(cfg.get("camera_width", 320) or 320),
+                        "height": int(cfg.get("camera_height", 240) or 240),
                         "fps": fps,
                     })
                 time.sleep(1.0 / fps)
@@ -226,10 +226,10 @@ class CameraStream:
         device_index = int(cfg.get("camera_device_index", 0))
         backend_name = str(cfg.get("camera_backend", "V4L2") or "V4L2").strip().upper()
         fourcc = str(cfg.get("camera_fourcc", "MJPG") or "MJPG").strip().upper()[:4] or "MJPG"
-        width = int(cfg.get("camera_width", 640) or 640)
-        height = int(cfg.get("camera_height", 480) or 480)
+        width = int(cfg.get("camera_width", 320) or 320)
+        height = int(cfg.get("camera_height", 240) or 240)
         fps = max(1, int(cfg.get("camera_fps", 10) or 10))
-        warmup_frames = max(0, int(cfg.get("camera_open_warmup_frames", 5) or 0))
+        warmup_frames = max(0, int(cfg.get("camera_open_warmup_frames", 10) or 0))
         device = self._camera_device(device_index)
         backend = self._backend_flag(backend_name)
 
@@ -274,10 +274,10 @@ class CameraStream:
             while not self.stop_event.is_set():
                 cfg = self.get_config()
                 device_index = int(cfg.get("camera_device_index", 0))
-                width = int(cfg.get("camera_width", 640))
-                height = int(cfg.get("camera_height", 480))
+                width = int(cfg.get("camera_width", 320))
+                height = int(cfg.get("camera_height", 240))
                 fps = max(1, int(cfg.get("camera_fps", 10)))
-                quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 70))))
+                quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 55))))
                 retry_on_failed_read = bool(cfg.get("camera_retry_on_failed_read", True))
 
                 if cap is None or not cap.isOpened():

@@ -84,10 +84,10 @@ function updateSettingsFields(config) {
 
   $('cameraEnabledInput').value = String(config.camera_enabled !== false);
   $('camIndexesInput').value = (config.camera_device_indexes || [config.camera_device_index ?? 0]).join(',');
-  $('camWidthInput').value = config.camera_width ?? 640;
-  $('camHeightInput').value = config.camera_height ?? 480;
+  $('camWidthInput').value = config.camera_width ?? 320;
+  $('camHeightInput').value = config.camera_height ?? 240;
   $('camFpsInput').value = config.camera_fps ?? 10;
-  $('camQualityInput').value = config.camera_jpeg_quality ?? 70;
+  $('camQualityInput').value = config.camera_jpeg_quality ?? 55;
 
   $('thermalEnabledInput').value = String(config.thermal_enabled !== false);
   $('thermalSimInput').value = String(config.thermal_simulation === true);
@@ -439,10 +439,10 @@ async function saveSettings() {
 
     camera_enabled: boolVal('cameraEnabledInput'),
     camera_device_indexes: $('camIndexesInput').value.trim() || '0',
-    camera_width: Number($('camWidthInput').value || 640),
-    camera_height: Number($('camHeightInput').value || 480),
+    camera_width: Number($('camWidthInput').value || 320),
+    camera_height: Number($('camHeightInput').value || 240),
     camera_fps: Number($('camFpsInput').value || 10),
-    camera_jpeg_quality: Number($('camQualityInput').value || 70),
+    camera_jpeg_quality: Number($('camQualityInput').value || 55),
 
     thermal_enabled: boolVal('thermalEnabledInput'),
     thermal_simulation: boolVal('thermalSimInput'),
