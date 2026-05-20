@@ -19,8 +19,8 @@ Usage:
   $0 <node-name> <node-ip> [role] [main-server-ip] [options]
 
 Examples:
-  $0 node-01 192.168.9.52 node 192.168.9.51
-  $0 node-main-center 192.168.9.51 server 192.168.9.51 --install-service
+  $0 node_01 192.168.9.52 node_01 192.168.9.51
+  $0 main_server 192.168.9.51 main_server 192.168.9.51 --install-service
 
 Options:
   --install-service   Install, enable, and start the optional systemd service.
@@ -71,10 +71,27 @@ if [ -z "$NODE_NAME" ] || [ -z "$NODE_IP" ]; then
   exit 2
 fi
 
-if [ "$ROLE" != "server" ] && [ "$ROLE" != "node" ]; then
-  echo "Role must be 'server' or 'node'." >&2
-  exit 2
-fi
+ROLE_NORMALIZED="$(printf '%s' "$ROLE" | tr '[:upper:]-' '[:lower:]_')"
+case "$ROLE_NORMALIZED" in
+  main_server|server|node_main_center)
+    APP_ROLE="server"
+    ROLE="main_server"
+    ;;
+  node|node_01|node_02|node_03|node_1|node_2|node_3)
+    APP_ROLE="node"
+    case "$ROLE_NORMALIZED" in
+      node_1) ROLE="node_01" ;;
+      node_2) ROLE="node_02" ;;
+      node_3) ROLE="node_03" ;;
+      node) ROLE="$NODE_NAME" ;;
+      *) ROLE="$ROLE_NORMALIZED" ;;
+    esac
+    ;;
+  *)
+    echo "Role must be one of: main_server, server, node, node_01, node_02, node_03." >&2
+    exit 2
+    ;;
+esac
 
 if [ ! -f "$SSH_KEY" ]; then
   echo "SSH key not found: $SSH_KEY" >&2
@@ -94,15 +111,16 @@ ssh_remote() {
 
 ssh_remote_script() {
   local env_prefix
-  env_prefix="$(printf 'NODE_NAME=%q ROLE=%q MAIN_SERVER_IP=%q NODE_IP=%q REMOTE_APP=%q PORT=%q REMOTE_NODE_IPS=%q INSTALL_SERVICE=%q START_AFTER_DEPLOY=%q SKIP_SETUP=%q ' \
-    "$NODE_NAME" "$ROLE" "$MAIN_SERVER_IP" "$NODE_IP" "$REMOTE_APP" "$PORT" "$REMOTE_NODE_IPS_DEFAULT" "$INSTALL_SERVICE" "$START_AFTER_DEPLOY" "$SKIP_SETUP")"
-  ssh "${SSH_OPTS[@]}" -tt "${SSH_USER}@${NODE_IP}" "${env_prefix} bash -s"
+  env_prefix="$(printf 'NODE_NAME=%q ROLE=%q APP_ROLE=%q MAIN_SERVER_IP=%q NODE_IP=%q REMOTE_APP=%q PORT=%q REMOTE_NODE_IPS=%q INSTALL_SERVICE=%q START_AFTER_DEPLOY=%q SKIP_SETUP=%q ' \
+    "$NODE_NAME" "$ROLE" "$APP_ROLE" "$MAIN_SERVER_IP" "$NODE_IP" "$REMOTE_APP" "$PORT" "$REMOTE_NODE_IPS_DEFAULT" "$INSTALL_SERVICE" "$START_AFTER_DEPLOY" "$SKIP_SETUP")"
+  ssh "${SSH_OPTS[@]}" "${SSH_USER}@${NODE_IP}" "${env_prefix} bash -s"
 }
 
 echo "============================================================"
 echo " ADM FireNode Raspberry Pi Deployment"
 echo " Target: ${NODE_NAME} (${NODE_IP})"
-echo " Role: ${ROLE}"
+echo " Deployment role: ${ROLE}"
+echo " App role: ${APP_ROLE}"
 echo " Main server IP: ${MAIN_SERVER_IP}"
 echo " App path on RPi: ${REMOTE_APP}"
 echo " Simulation mode: enabled"
@@ -120,7 +138,7 @@ rsync -az --delete \
   --exclude '__pycache__/' \
   --exclude '*.pyc' \
   --exclude '.DS_Store' \
-  --exclude 'logs/*.db' \
+  --exclude 'logs/' \
   --exclude 'media/' \
   "${REPO_ROOT}/${APP_REL}/" \
   "${SSH_USER}@${NODE_IP}:${REMOTE_APP}/"
@@ -131,6 +149,7 @@ set -euo pipefail
 
 cd "$REMOTE_APP"
 chmod +x setup.sh run.sh check_mic.sh install_service.sh uninstall_service.sh || true
+mkdir -p logs
 
 if [ "$SKIP_SETUP" != "1" ]; then
   echo "Running app setup in manual-start mode..."
@@ -159,6 +178,7 @@ from datetime import datetime
 config_path = sys.argv[1]
 node_name = os.environ["NODE_NAME"]
 role = os.environ["ROLE"]
+app_role = os.environ["APP_ROLE"]
 node_ip = os.environ["NODE_IP"]
 main_server_ip = os.environ["MAIN_SERVER_IP"]
 port = int(os.environ["PORT"])
@@ -172,6 +192,7 @@ except Exception:
 
 config.update({
     "role": role,
+    "app_role": app_role,
     "operation_mode": "simulation",
     "host": "0.0.0.0",
     "port": port,
@@ -190,7 +211,7 @@ config.update({
     "event_recording_enabled": True,
 })
 
-if role == "server":
+if app_role == "server":
     config.update({
         "remote_node_ips": remote_node_ips,
         "remote_node_count": 3,
@@ -216,6 +237,7 @@ cat > "$REMOTE_APP/.deployment.env" <<EOF
 ADM_FIRE_NODE_NAME=$NODE_NAME
 ADM_FIRE_NODE_IP=$NODE_IP
 ADM_FIRE_ROLE=$ROLE
+ADM_FIRE_APP_ROLE=$APP_ROLE
 ADM_FIRE_MAIN_SERVER_IP=$MAIN_SERVER_IP
 ADM_FIRE_APP_DIR=$REMOTE_APP
 ADM_FIRE_PORT=$PORT
@@ -282,7 +304,7 @@ Browser/API checks after the app is running:
   curl -I --max-time 5 http://${NODE_IP}:${PORT}/video_feed
 EOF
 
-if [ "$ROLE" = "server" ]; then
+if [ "$APP_ROLE" = "server" ]; then
   cat <<EOF
   curl http://${NODE_IP}:${PORT}/api/server-dashboard
   curl --output /tmp/firenode-thermal.png http://${NODE_IP}:${PORT}/thermal.png
@@ -291,7 +313,7 @@ fi
 
 if [ "$VALIDATE_AFTER_DEPLOY" = "1" ]; then
   echo "[5/5] Running lightweight validation checks..."
-  ssh_remote "test -x '${REMOTE_APP}/run.sh' && test -f '${REMOTE_APP}/config.json' && '${REMOTE_APP}/venv/bin/python' -m py_compile '${REMOTE_APP}/app.py'"
+  ssh_remote "echo 'SSH connectivity OK on ${NODE_NAME}'; command -v python3; command -v rsync; dpkg -s python3-venv python3-flask python3-requests curl >/dev/null; PY='${REMOTE_APP}/venv/bin/python'; [ -x \"\$PY\" ] || PY=python3; test -x '${REMOTE_APP}/run.sh' && test -f '${REMOTE_APP}/config.json' && \"\$PY\" -m py_compile '${REMOTE_APP}/app.py'"
   ssh_remote "sudo systemctl status firenode-rpi --no-pager || true"
   if curl --fail --silent --max-time 3 "http://${NODE_IP}:${PORT}/api/status" >/dev/null; then
     echo "API status check passed: http://${NODE_IP}:${PORT}/api/status"

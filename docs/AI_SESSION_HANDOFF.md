@@ -24,6 +24,8 @@ Use the new deployment scripts to deploy/update the Raspberry Pi app before resu
 - `scripts/deploy_node.sh`
 - `scripts/deploy_all_rpis.sh`
 - `docs/deployment/rpi_automated_deployment.md`
+- `deploy_all_rpis.sh` now supports parallel default deployment, `--sequential`, `--target <ip>`, per-IP logs, and final pass/fail summary.
+- RPi app config now accepts deployment role aliases: `main_server`, `node_01`, `node_02`, `node_03`.
 
 ## Expected Validation
 - `bash -n` on all deployment scripts.
@@ -31,3 +33,10 @@ Use the new deployment scripts to deploy/update the Raspberry Pi app before resu
 - Manual start on each RPi with `/home/betech/admfire/raspi/firenode-system/run.sh`.
 - API checks against `/api/status`, `/api/config`, `/api/node-data`, `/api/server-dashboard`, and `/api/lora/status`.
 - Stream placeholder checks against `/video_feed` and main `/thermal.png`.
+
+## Next Exact Command
+
+```bash
+cd "/Users/macbookm1max321tb/A_Design/A_Coding/ADM Fire"
+./scripts/deploy_all_rpis.sh
+```

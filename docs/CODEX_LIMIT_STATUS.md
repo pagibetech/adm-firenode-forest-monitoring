@@ -1,17 +1,18 @@
 # Codex Limit Status
 
 Current Codex 5-hour usage limit:
-Exhausted / 0% remaining based on latest screenshot.
+Available again per latest user instruction.
 
 Current weekly limit:
 Available but must be conserved.
 
 Current development mode:
-Codex conservation mode. This task used focused repo edits because the user explicitly requested multi-file deployment scripts, workbook update, commit, and push.
+Codex available but still conserve usage. Use for focused repo-aware implementation and validation only.
 
-Do not use Codex again until:
-- 5-hour limit resets, or
-- a task clearly requires repo-wide premium implementation.
+Use Codex when:
+- a task clearly requires repo-aware multi-file implementation,
+- local command validation is needed,
+- deployment failure requires targeted code/script fixes.
 
 Current routing after this task:
 - Use local MacBook terminal to run deployment scripts.

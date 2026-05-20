@@ -35,7 +35,7 @@ Remote app folder: `/home/betech/admfire/raspi/firenode-system`
 - Create an optional `firenode-rpi.service` systemd unit.
 - Keep manual start as the default unless `--install-service` is used.
 
-## Deploy Everything
+## Deploy Everything In Parallel
 
 From the MacBook:
 
@@ -45,7 +45,40 @@ chmod +x scripts/deploy_main_server.sh scripts/deploy_node.sh scripts/deploy_all
 ./scripts/deploy_all_rpis.sh
 ```
 
+Parallel deployment is the default. It starts all selected RPis at the same time and writes one log file per target:
+
+```text
+logs/deploy_192.168.9.51.log
+logs/deploy_192.168.9.52.log
+logs/deploy_192.168.9.53.log
+logs/deploy_192.168.9.54.log
+```
+
+At the end, the script prints a `PASS` or `FAIL` summary for each Raspberry Pi.
+
 This does not require ESP32 or LoRa hardware.
+
+## Deploy Everything Sequentially
+
+Use this if you want to watch one Raspberry Pi at a time:
+
+```bash
+./scripts/deploy_all_rpis.sh --sequential
+```
+
+## Deploy One Target Only
+
+Deploy only the main server:
+
+```bash
+./scripts/deploy_all_rpis.sh --target 192.168.9.51
+```
+
+Deploy only Node 1:
+
+```bash
+./scripts/deploy_all_rpis.sh --target 192.168.9.52
+```
 
 ## Deploy One Raspberry Pi
 
@@ -58,7 +91,7 @@ Main server:
 One remote node:
 
 ```bash
-./scripts/deploy_node.sh node-01 192.168.9.52 node 192.168.9.51
+./scripts/deploy_node.sh node_01 192.168.9.52 node_01 192.168.9.51
 ```
 
 ## Optional Flags
@@ -79,6 +112,12 @@ Run lightweight validation after deployment:
 
 ```bash
 ./scripts/deploy_all_rpis.sh --validate
+```
+
+Deploy one RPi and run validation:
+
+```bash
+./scripts/deploy_all_rpis.sh --target 192.168.9.51 --validate
 ```
 
 If dependencies are already installed and only files/configs need updating:
@@ -108,6 +147,32 @@ cd /home/betech/admfire/raspi/firenode-system
 ```
 
 Repeat for Node 2 and Node 3 using `192.168.9.53` and `192.168.9.54`.
+
+Manual start all nodes in separate terminal tabs:
+
+```bash
+ssh -i ~/admfire betech@192.168.9.51 'cd /home/betech/admfire/raspi/firenode-system && ./run.sh'
+ssh -i ~/admfire betech@192.168.9.52 'cd /home/betech/admfire/raspi/firenode-system && ./run.sh'
+ssh -i ~/admfire betech@192.168.9.53 'cd /home/betech/admfire/raspi/firenode-system && ./run.sh'
+ssh -i ~/admfire betech@192.168.9.54 'cd /home/betech/admfire/raspi/firenode-system && ./run.sh'
+```
+
+## Deployment Log Checks
+
+From the MacBook:
+
+```bash
+tail -n 80 logs/deploy_192.168.9.51.log
+tail -n 80 logs/deploy_192.168.9.52.log
+tail -n 80 logs/deploy_192.168.9.53.log
+tail -n 80 logs/deploy_192.168.9.54.log
+```
+
+Watch one log while deploying:
+
+```bash
+tail -f logs/deploy_192.168.9.51.log
+```
 
 ## Service Checks
 
@@ -157,6 +222,37 @@ curl http://192.168.9.53:8090/api/node-data
 curl http://192.168.9.54:8090/api/node-data
 ```
 
+## SSH Connectivity Check
+
+Before deployment:
+
+```bash
+ssh -i ~/admfire betech@192.168.9.51 'hostname && hostname -I'
+ssh -i ~/admfire betech@192.168.9.52 'hostname && hostname -I'
+ssh -i ~/admfire betech@192.168.9.53 'hostname && hostname -I'
+ssh -i ~/admfire betech@192.168.9.54 'hostname && hostname -I'
+```
+
+## Installed Package Check
+
+After deployment:
+
+```bash
+ssh -i ~/admfire betech@192.168.9.51 'dpkg -s python3-venv python3-flask python3-requests curl rsync >/dev/null && echo packages-ok'
+ssh -i ~/admfire betech@192.168.9.52 'dpkg -s python3-venv python3-flask python3-requests curl rsync >/dev/null && echo packages-ok'
+```
+
+## App Start Check
+
+After manual start or `--start`:
+
+```bash
+curl --fail http://192.168.9.51:8090/api/status
+curl --fail http://192.168.9.52:8090/api/status
+curl --fail http://192.168.9.53:8090/api/status
+curl --fail http://192.168.9.54:8090/api/status
+```
+
 ## Simulation Mode Checks
 
 Confirm simulation mode:
@@ -168,11 +264,20 @@ ssh -i ~/admfire betech@192.168.9.52 'python3 -m json.tool /home/betech/admfire/
 
 Expected:
 
-- Main server role is `server`.
-- Remote nodes use role `node`.
+- Main server deployment role is `main_server`.
+- Remote node deployment roles are `node_01`, `node_02`, and `node_03`.
+- Runtime `app_role` is `server` on the main server and `node` on remote nodes.
 - `operation_mode` is `simulation`.
 - Main server has remote node IPs `192.168.9.52`, `192.168.9.53`, `192.168.9.54`.
 - Main server thermal camera uses `thermal_simulation: true` until MLX90640 live validation resumes.
+
+Check all roles quickly:
+
+```bash
+for ip in 192.168.9.51 192.168.9.52 192.168.9.53 192.168.9.54; do
+  ssh -i ~/admfire betech@$ip 'python3 -m json.tool /home/betech/admfire/raspi/firenode-system/config.json | grep -E "\"role\"|\"app_role\"|\"operation_mode\"|\"main_server_ip\"|\"node_ip\""'
+done
+```
 
 ## Stream Placeholder Checks
 
@@ -194,6 +299,12 @@ Open the dashboard:
 
 ```text
 http://192.168.9.51:8090
+```
+
+Dashboard access check from the MacBook:
+
+```bash
+curl -I http://192.168.9.51:8090/
 ```
 
 ## Troubleshooting

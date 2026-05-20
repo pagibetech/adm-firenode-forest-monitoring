@@ -34,6 +34,17 @@ Default mode:
 - simulation mode enabled
 - manual start by default
 - optional systemd service file created but not enabled unless requested
+- `deploy_all_rpis.sh` deploys all RPis in parallel by default
+- `--sequential` deploys one RPi at a time
+- `--target <ip>` deploys only one RPi
+- per-target logs are written under `logs/deploy_<ip>.log`
+- final summary prints pass/fail per RPi
+
+Deployment role labels:
+- `192.168.9.51`: `main_server`
+- `192.168.9.52`: `node_01`
+- `192.168.9.53`: `node_02`
+- `192.168.9.54`: `node_03`
 
 ## Do Not Start Yet
 - Major architecture refactor

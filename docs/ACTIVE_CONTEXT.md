@@ -34,4 +34,7 @@ Current deployment mode:
 - Raspberry Pi app deployed in simulation mode
 
 Latest completed task:
-- Added automated RPi deployment scripts and beginner deployment guide.
+- Updated automated RPi deployment scripts for parallel default deployment, sequential mode, single-target mode, per-RPi logs, pass/fail summary, and deployment-role config labels.
+
+Next exact command:
+- `./scripts/deploy_all_rpis.sh`

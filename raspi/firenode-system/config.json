@@ -1,5 +1,6 @@
 {
   "role": "server",
+  "app_role": "server",
   "operation_mode": "simulation",
   "remote_node_count": 3,
   "host": "0.0.0.0",

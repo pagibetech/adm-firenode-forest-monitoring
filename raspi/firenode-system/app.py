@@ -70,7 +70,8 @@ REMOTE_NODE_COUNT = 3
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     # FireNode role. This package is now main-server oriented by default.
-    "role": "server",  # node or server
+    "role": "server",  # server/main_server or node/node_01/node_02/node_03
+    "app_role": "server",  # normalized internal role: node or server
     "operation_mode": "live",  # live or simulation
     "remote_node_count": REMOTE_NODE_COUNT,
     "host": "0.0.0.0",
@@ -183,6 +184,16 @@ def now_text() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def normalize_role(value: Any) -> str:
+    """Map deployment labels to the app's internal server/node roles."""
+    role = str(value or "server").strip().lower().replace("-", "_")
+    if role in ("main_server", "main", "server", "node_main_center", "node_main"):
+        return "server"
+    if role in ("node", "node_01", "node_02", "node_03", "node_1", "node_2", "node_3"):
+        return "node"
+    return "server"
+
+
 def load_config() -> Dict[str, Any]:
     cfg = dict(DEFAULT_CONFIG)
     if os.path.exists(CONFIG_PATH):
@@ -193,8 +204,7 @@ def load_config() -> Dict[str, Any]:
                 cfg.update(loaded)
         except Exception:
             pass
-    if cfg.get("role") not in ("node", "server"):
-        cfg["role"] = "server"
+    cfg["app_role"] = normalize_role(cfg.get("role"))
     if cfg.get("detection_mode") not in ("live", "file"):
         cfg["detection_mode"] = "live"
     if cfg.get("operation_mode") not in ("live", "simulation"):
@@ -215,6 +225,7 @@ def save_config() -> None:
     safe["camera_device_indexes"] = parse_camera_indexes(safe.get("camera_device_indexes", [safe.get("camera_device_index", 0)]), int(safe.get("camera_device_index", 0)))
     safe["camera_device_index"] = int(safe["camera_device_indexes"][0])
     safe["remote_node_count"] = REMOTE_NODE_COUNT
+    safe["app_role"] = normalize_role(safe.get("role"))
     if safe.get("operation_mode") not in ("live", "simulation"):
         safe["operation_mode"] = "live"
     if isinstance(safe.get("remote_node_ips"), list):
@@ -240,7 +251,7 @@ last_alert_states: Dict[str, bool] = {}
 
 
 def current_role() -> str:
-    return "server" if str(cfg.get("role", "server")).lower() == "server" else "node"
+    return normalize_role(cfg.get("role", cfg.get("app_role", "server")))
 
 
 def operation_mode() -> str:
@@ -868,7 +879,7 @@ def api_config():
     for key in allowed_str:
         if key in data:
             value = str(data.get(key) or "").strip()
-            if key == "role" and value not in ("node", "server"):
+            if key == "role" and normalize_role(value) not in ("node", "server"):
                 value = "server"
             if key == "operation_mode" and value not in ("live", "simulation"):
                 value = "live"
