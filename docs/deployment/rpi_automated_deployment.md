@@ -307,6 +307,29 @@ Dashboard access check from the MacBook:
 curl -I http://192.168.9.51:8090/
 ```
 
+## Live USB Camera MJPG/V4L2 Check
+
+Use this when `/dev/video0` exists but the dashboard reports `Camera frame read failed`.
+
+```bash
+ssh -i ~/admfire betech@192.168.9.51
+cd /home/betech/admfire/raspi/firenode-system
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+```
+
+Expected:
+
+```text
+Camera test passed.
+Saved test frame: /tmp/firenode_camera_test.jpg
+```
+
+Deploy only the main-server camera fix after pulling this repo update:
+
+```bash
+./scripts/deploy_all_rpis.sh --target 192.168.9.51 --skip-setup
+```
+
 ## Troubleshooting
 
 If SSH fails:

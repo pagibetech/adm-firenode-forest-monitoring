@@ -103,6 +103,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "camera_enabled": True,
     "camera_device_index": 0,
     "camera_device_indexes": [0],
+    "camera_backend": "V4L2",
+    "camera_fourcc": "MJPG",
+    "camera_open_warmup_frames": 5,
+    "camera_retry_on_failed_read": True,
     "camera_width": 640,
     "camera_height": 480,
     "camera_fps": 10,
@@ -860,12 +864,13 @@ def api_config():
     data = request.get_json(force=True, silent=True) or {}
     allowed_str = [
         "role", "operation_mode", "selected_esp32_ip", "esp32_scan_prefix", "node_scan_prefix",
+        "camera_backend", "camera_fourcc",
         "detection_mode", "audio_browse_start_dir", "log_file",
         "thermal_i2c_address", "wifi_ssid", "wifi_password", "wifi_country", "wifi_interface",
     ]
     allowed_int = [
         "port", "esp32_scan_workers", "camera_device_index", "camera_width", "camera_height", "camera_fps",
-        "camera_jpeg_quality", "sample_rate", "score_threshold", "require_hits", "history_windows",
+        "camera_jpeg_quality", "camera_open_warmup_frames", "sample_rate", "score_threshold", "require_hits", "history_windows",
         "thermal_refresh_rate_hz", "thermal_min_blob_pixels", "thermal_rotate_degrees", "lora_spreading_factor",
     ]
     allowed_float = [
@@ -874,7 +879,7 @@ def api_config():
         "thermal_display_min_c", "thermal_display_max_c", "thermal_min_human_temp_c", "thermal_max_human_temp_c",
         "thermal_min_delta_above_ambient_c", "lora_sim_interval_sec", "lora_frequency_mhz", "lora_bandwidth_khz",
     ]
-    allowed_bool = ["camera_enabled", "auto_start", "thermal_enabled", "thermal_simulation", "thermal_mirror_x", "thermal_mirror_y", "lora_enabled", "event_recording_enabled"]
+    allowed_bool = ["camera_enabled", "camera_retry_on_failed_read", "auto_start", "thermal_enabled", "thermal_simulation", "thermal_mirror_x", "thermal_mirror_y", "lora_enabled", "event_recording_enabled"]
 
     for key in allowed_str:
         if key in data:

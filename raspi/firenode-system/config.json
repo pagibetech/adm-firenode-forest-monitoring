@@ -26,6 +26,10 @@
   "camera_device_indexes": [
     0
   ],
+  "camera_backend": "V4L2",
+  "camera_fourcc": "MJPG",
+  "camera_open_warmup_frames": 5,
+  "camera_retry_on_failed_read": true,
   "camera_width": 640,
   "camera_height": 480,
   "camera_fps": 10,

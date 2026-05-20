@@ -1,7 +1,7 @@
 # ADM FireNode Project Status
 
 ## Current Status
-Repository is synchronized with GitHub main.
+Main server deployment is successful. Dashboard/API are working on `192.168.9.51`.
 
 ## Completed Validation
 - Python tests passed
@@ -11,10 +11,17 @@ Repository is synchronized with GitHub main.
 - ESP32 LoRa gateway build passed
 
 ## Next Incomplete Task
-Run automated Raspberry Pi deployment from the MacBook in simulation mode, then validate Flask/API/stream placeholders on the four RPis.
+Deploy the USB camera capture fix to the main server and validate `/dev/video0` MJPG/V4L2 capture.
 
 ## Immediate Goal
-Deploy the Raspberry Pi web app to the four target RPis without requiring ESP32/LoRa hardware yet.
+Fix live USB webcam capture on the main server without changing thermal, simulation, or ESP32/LoRa behavior.
+
+## Current Camera Finding
+- `/dev/video0` is correct on the main server.
+- The camera supports MJPG and YUYV.
+- Default OpenCV capture read fails.
+- `cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)` with MJPG, 640x480, 25 FPS works manually.
+- The app now supports configurable `camera_backend`, `camera_fourcc`, `camera_open_warmup_frames`, and `camera_retry_on_failed_read`.
 
 ## Current Deployment Support
 - `scripts/deploy_main_server.sh`

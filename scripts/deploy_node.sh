@@ -148,7 +148,7 @@ ssh_remote_script <<'REMOTE'
 set -euo pipefail
 
 cd "$REMOTE_APP"
-chmod +x setup.sh run.sh check_mic.sh install_service.sh uninstall_service.sh || true
+chmod +x setup.sh run.sh check_mic.sh camera_test.py install_service.sh uninstall_service.sh || true
 mkdir -p logs
 
 if [ "$SKIP_SETUP" != "1" ]; then
@@ -207,6 +207,10 @@ config.update({
     "camera_enabled": True,
     "camera_device_index": 0,
     "camera_device_indexes": [0],
+    "camera_backend": "V4L2",
+    "camera_fourcc": "MJPG",
+    "camera_open_warmup_frames": 5,
+    "camera_retry_on_failed_read": True,
     "auto_start": False,
     "event_recording_enabled": True,
 })

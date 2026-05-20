@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import io
 import math
+import os
+import platform
 import threading
 import time
 from typing import Any, Callable, Dict, Optional
@@ -198,6 +200,74 @@ class CameraStream:
             with self.lock:
                 self.status["running"] = False
 
+    def _camera_device(self, device_index: int) -> Any:
+        path = f"/dev/video{device_index}"
+        if os.name == "posix" and os.path.exists(path):
+            return path
+        return device_index
+
+    def _backend_flag(self, backend_name: str) -> Optional[int]:
+        if cv2 is None:
+            return None
+        backend = str(backend_name or "V4L2").strip().upper()
+        if backend in ("", "AUTO", "DEFAULT", "ANY"):
+            return None
+        if backend == "V4L2" and platform.system().lower() == "linux" and hasattr(cv2, "CAP_V4L2"):
+            return int(cv2.CAP_V4L2)
+        attr = f"CAP_{backend}"
+        if hasattr(cv2, attr):
+            try:
+                return int(getattr(cv2, attr))
+            except Exception:
+                return None
+        return None
+
+    def _open_capture(self, cfg: Dict[str, Any]):
+        device_index = int(cfg.get("camera_device_index", 0))
+        backend_name = str(cfg.get("camera_backend", "V4L2") or "V4L2").strip().upper()
+        fourcc = str(cfg.get("camera_fourcc", "MJPG") or "MJPG").strip().upper()[:4] or "MJPG"
+        width = int(cfg.get("camera_width", 640) or 640)
+        height = int(cfg.get("camera_height", 480) or 480)
+        fps = max(1, int(cfg.get("camera_fps", 10) or 10))
+        warmup_frames = max(0, int(cfg.get("camera_open_warmup_frames", 5) or 0))
+        device = self._camera_device(device_index)
+        backend = self._backend_flag(backend_name)
+
+        if backend is not None:
+            cap = cv2.VideoCapture(device, backend)
+        else:
+            cap = cv2.VideoCapture(device)
+
+        if cap is not None and cap.isOpened():
+            try:
+                if fourcc and len(fourcc) == 4:
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                cap.set(cv2.CAP_PROP_FPS, fps)
+            except Exception:
+                pass
+            for _ in range(warmup_frames):
+                if self.stop_event.is_set():
+                    break
+                try:
+                    cap.read()
+                except Exception:
+                    break
+
+        with self.lock:
+            self.status.update({
+                "device_index": device_index,
+                "device": str(device),
+                "backend": backend_name if backend is not None else "AUTO",
+                "fourcc": fourcc,
+                "width": width,
+                "height": height,
+                "fps": fps,
+                "warmup_frames": warmup_frames,
+            })
+        return cap
+
     def _loop(self) -> None:
         cap = None
         try:
@@ -208,19 +278,12 @@ class CameraStream:
                 height = int(cfg.get("camera_height", 480))
                 fps = max(1, int(cfg.get("camera_fps", 10)))
                 quality = max(30, min(95, int(cfg.get("camera_jpeg_quality", 70))))
+                retry_on_failed_read = bool(cfg.get("camera_retry_on_failed_read", True))
 
                 if cap is None or not cap.isOpened():
-                    cap = cv2.VideoCapture(device_index)
-                    try:
-                        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-                        cap.set(cv2.CAP_PROP_FPS, fps)
-                    except Exception:
-                        pass
-                    with self.lock:
-                        self.status.update({"device_index": device_index, "width": width, "height": height, "fps": fps})
+                    cap = self._open_capture(cfg)
 
-                if not cap.isOpened():
+                if cap is None or not cap.isOpened():
                     with self.lock:
                         self.status.update({"running": True, "error": f"Cannot open /dev/video{device_index}"})
                         self.frame_jpeg = self._placeholder(f"No camera /dev/video{device_index}")
@@ -230,7 +293,13 @@ class CameraStream:
                 ok, frame = cap.read()
                 if not ok or frame is None:
                     with self.lock:
-                        self.status["error"] = "Camera frame read failed"
+                        self.status["error"] = "Camera frame read failed; reopening" if retry_on_failed_read else "Camera frame read failed"
+                    if retry_on_failed_read:
+                        try:
+                            cap.release()
+                        except Exception:
+                            pass
+                        cap = None
                     time.sleep(0.5)
                     continue
 

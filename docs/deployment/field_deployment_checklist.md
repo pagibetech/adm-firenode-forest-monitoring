@@ -57,6 +57,13 @@ http://<main-rpi-ip>:8090
 
 ## 5. Camera And Recording Validation
 
+- On each RPi, confirm the USB camera can read MJPG frames:
+
+```bash
+cd /home/betech/admfire/raspi/firenode-system
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+```
+
 - Confirm all four daytime camera feeds are visible on the main dashboard.
 - Trigger or simulate a chainsaw event.
 - Confirm the dashboard alert appears.

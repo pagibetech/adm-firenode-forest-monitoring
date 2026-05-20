@@ -321,6 +321,31 @@ ls /dev/video*
 
 Try changing Camera Device Indexes in Settings.
 
+If `/dev/video0` exists but the dashboard says `Camera frame read failed`, test the same MJPG/V4L2 mode used by the app:
+
+```bash
+cd /home/betech/admfire/raspi/firenode-system
+./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 640 --height 480 --fps 25
+```
+
+Expected result:
+
+```text
+Camera test passed.
+Saved test frame: /tmp/firenode_camera_test.jpg
+```
+
+The app defaults are:
+
+```json
+{
+  "camera_backend": "V4L2",
+  "camera_fourcc": "MJPG",
+  "camera_open_warmup_frames": 5,
+  "camera_retry_on_failed_read": true
+}
+```
+
 ### Thermal not showing
 
 Check I2C:

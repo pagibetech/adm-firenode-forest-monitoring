@@ -35,6 +35,8 @@ Current deployment mode:
 
 Latest completed task:
 - Updated automated RPi deployment scripts for parallel default deployment, sequential mode, single-target mode, per-RPi logs, pass/fail summary, and deployment-role config labels.
+- Main server deployment is successful and dashboard/API are working on `192.168.9.51`.
+- Added live USB camera MJPG/V4L2 capture support after `/dev/video0` opened but default OpenCV reads failed.
 
 Next exact command:
-- `./scripts/deploy_all_rpis.sh`
+- Deploy the camera fix to the main server only: `./scripts/deploy_all_rpis.sh --target 192.168.9.51 --skip-setup`
