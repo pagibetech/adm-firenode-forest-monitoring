@@ -22,18 +22,20 @@
   "lora_spreading_factor": 7,
   "lora_bandwidth_khz": 125.0,
   "camera_enabled": true,
+  "camera_type": "csi",
   "camera_device_index": 0,
   "camera_device_indexes": [
     0
   ],
   "camera_backend": "V4L2",
   "camera_fourcc": "MJPG",
+  "camera_usb_fallback": true,
   "camera_open_warmup_frames": 10,
   "camera_retry_on_failed_read": true,
-  "camera_width": 320,
-  "camera_height": 240,
-  "camera_fps": 10,
-  "camera_jpeg_quality": 55,
+  "camera_width": 640,
+  "camera_height": 480,
+  "camera_fps": 15,
+  "camera_jpeg_quality": 85,
   "thermal_enabled": true,
   "thermal_simulation": true,
   "thermal_i2c_address": "0x33",
@@ -63,5 +65,8 @@
   "input_device": null,
   "audio_browse_start_dir": "test_audio",
   "log_file": "detections.csv",
-  "event_recording_enabled": true
+  "event_recording_enabled": true,
+  "esp32_serial_enabled": true,
+  "esp32_serial_port": "/dev/ttyUSB0",
+  "esp32_serial_baud": 115200
 }

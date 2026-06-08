@@ -14,10 +14,11 @@ Use this checklist after the simulation smoke test passes and before the forest 
 ./scripts/smoke_test_main_simulation.py
 ```
 
-## 2. Main / Center Node
+## 2. Main / Center Node (.51)
 
-- Install the main Raspberry Pi, daytime camera, MLX90640 thermal camera, siren relay, ESP32 LoRa gateway, and 12 V battery.
+- Install the main Raspberry Pi, daytime camera, MLX90640 thermal camera (future), siren relay, ESP32 LoRa gateway, and 12 V battery.
 - Use a fused 12 V input and a stable 5 V buck converter rated for the Raspberry Pi load.
+- Connect MAIN ESP32 to .51 RPi by USB serial at `/dev/ttyUSB0`.
 - Start or install the web app service:
 
 ```bash
@@ -33,11 +34,9 @@ cd raspi/firenode-system
 http://<main-rpi-ip>:8090
 ```
 
-- If using the ESP32 LoRa gateway over USB, install the bridge:
-
-```bash
-./install_lora_gateway_service.sh /dev/ttyUSB0 115200 http://127.0.0.1:8090
-```
+- Verify MAIN ESP32 serial reader starts automatically in server live mode.
+- Check `/api/status` and confirm `serial_connected: true` and `packets_by_node` includes `MAIN` and/or `NODE_01`.
+- If using the ESP32 LoRa gateway over USB, the serial reader now handles sensor data directly; HTTP fallback remains available.
 
 ## 3. Remote Nodes
 
@@ -57,14 +56,27 @@ http://<main-rpi-ip>:8090
 
 ## 5. Camera And Recording Validation
 
-- On each RPi, confirm the USB camera can read MJPG frames:
+- On each RPi, confirm the CSI camera is detected:
 
 ```bash
-cd /home/betech/admfire/raspi/firenode-system
-./venv/bin/python camera_test.py --device 0 --fourcc MJPG --width 320 --height 240 --fps 10
+rpicam-hello --list-cameras
 ```
 
-- If the image is corrupted/unclear, keep lower camera settings first because Raspberry Pi 3B USB bandwidth or camera power may be limited.
+Expected output should include `ov5647 [2592x1944 10-bit GBRG]`.
+
+- USB webcam path is deprecated. Historical note: USB cameras showed YUYV failures and corrupted MJPG frames on RPi 3B; the project has moved to Raspberry Pi Camera Rev 1.3 via CSI.
+- After confirming CSI detection, test a still capture:
+
+```bash
+rpicam-still -o /tmp/csi_test.jpg --width 1296 --height 972
+```
+
+- Once the rpicam/libcamera pipeline is integrated into the app, confirm the MJPEG stream endpoint:
+
+```bash
+curl -I --max-time 5 http://<rpi-ip>:8090/video_feed
+```
+
 - Confirm all four daytime camera feeds are visible on the main dashboard.
 - Trigger or simulate a chainsaw event.
 - Confirm the dashboard alert appears.
@@ -75,7 +87,38 @@ cd /home/betech/admfire/raspi/firenode-system
 raspi/firenode-system/media/events/
 ```
 
-## 6. Alert Validation
+## 6. ESP32 Serial Reader Validation (NEW)
+
+- **DEPLOY FIRST:** Deploy updated `raspi/firenode-system` to .51 MAIN.
+- Confirm `/dev/ttyUSB0` exists on .51:
+
+```bash
+ls -la /dev/ttyUSB0
+```
+
+- Confirm readable serial output with minicom:
+
+```bash
+minicom -D /dev/ttyUSB0 -b 115200
+```
+
+Expected lines:
+```
+[RECEIVED] NODE=NODE_01,SEQ=...,TEMP=...,HUM=...,PIR=...,MQ=...,BAT=...
+[LORA TX OK] NODE=MAIN,SEQ=...,TEMP=...,HUM=...,PIR=...,MQ=...,BAT=...
+```
+
+- Confirm `/api/status` shows:
+  - `serial_connected: true`
+  - `last_packet_time` is recent
+  - `packets_by_node` includes `MAIN` and/or `NODE_01`
+- Confirm `/api/server-dashboard` sensor cards populate with serial data:
+  - MAIN (local node) shows temperature, humidity, PIR, MQ, battery.
+  - NODE_01 (remote slot 1) shows temperature, humidity, PIR, MQ, battery when LoRa packets are received.
+- Confirm NODE_02 and NODE_03 remain placeholders (offline) until hardware is built.
+- Confirm HTTP ESP32 fallback still works if serial is disabled.
+
+## 7. Alert Validation
 
 - Confirm smoke alert state from MQ2 or simulation.
 - Confirm chainsaw alert state from microphone or test audio.
@@ -83,7 +126,15 @@ raspi/firenode-system/media/events/
 - Confirm siren relay behavior only after the team is ready for audible testing.
 - Log all results in `docs/workbook/ADM_FireNode_Implementation_Workbook.xlsx`.
 
-## 7. Shutdown
+## 8. ESP32 Node Validation
+
+- Validate MAIN ESP32 LoRa gateway and NODE_01 sensor sender before adding NODE_02/NODE_03.
+- Confirm two-way LoRa communication: MAIN → NODE_01 and NODE_01 → MAIN.
+- Confirm DHT22, PIR, MQ analog, and battery ADC readings are reasonable on each node.
+- If battery ADC appears floating/unconnected, verify voltage divider wiring and ADC pin assignment.
+- NODE_02 and NODE_03 ESP32 hardware are pending assembly; use same wiring/firmware as NODE_01 once hardware is ready.
+
+## 9. Shutdown
 
 - Stop optional services before disconnecting power:
 

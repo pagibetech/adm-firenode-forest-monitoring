@@ -132,7 +132,8 @@ function updateHeader(status) {
   setClass($('esp32Fetch'), 'badge', local.esp32_ok ? 'green' : 'red');
 
   const cam = local.camera || {};
-  $('cameraBadge').textContent = cam.enabled ? `USB Cameras: ${safe(cam.camera_count, 0)}` : 'USB Cameras: OFF';
+  const camLabel = safe(cam.camera_label, 'Camera');
+  $('cameraBadge').textContent = cam.enabled ? `${camLabel}: ${safe(cam.camera_count, 0)}` : `${camLabel}: OFF`;
   setClass($('cameraBadge'), 'pill', cam.enabled ? 'green' : 'red');
 
   const th = local.thermal || {};

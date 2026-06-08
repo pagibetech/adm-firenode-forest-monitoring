@@ -53,6 +53,7 @@ from modules.alert_logger import AlertLogger
 from modules.event_recorder import EventRecorder
 from modules.esp32_client import fetch_esp32_data, normalize_ip
 from modules.esp32_scanner import scan_esp32_devices
+from modules.esp32_serial_reader import ESP32SerialReader, serial_data_to_esp32_format, sensor_summary_from_serial
 from modules.lora_packet_store import LoraPacketStore
 from modules.lora_simulator import LoraPacketSimulator
 from modules.multi_camera_stream import MultiCameraManager, parse_camera_indexes
@@ -99,18 +100,25 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "lora_spreading_factor": 7,
     "lora_bandwidth_khz": 125.0,
 
-    # Local USB webcams. camera_device_index is kept for backward compatibility.
+    # ESP32 USB serial reader (MAIN RPi local serial)
+    "esp32_serial_enabled": True,
+    "esp32_serial_port": "/dev/ttyUSB0",
+    "esp32_serial_baud": 115200,
+
+    # Local cameras. camera_type = "csi" uses Picamera2; "usb" uses OpenCV V4L2 fallback.
     "camera_enabled": True,
+    "camera_type": "csi",
     "camera_device_index": 0,
     "camera_device_indexes": [0],
     "camera_backend": "V4L2",
     "camera_fourcc": "MJPG",
+    "camera_usb_fallback": True,
     "camera_open_warmup_frames": 10,
     "camera_retry_on_failed_read": True,
-    "camera_width": 320,
-    "camera_height": 240,
-    "camera_fps": 10,
-    "camera_jpeg_quality": 55,
+    "camera_width": 640,
+    "camera_height": 480,
+    "camera_fps": 15,
+    "camera_jpeg_quality": 85,
 
     # Local MLX90640 thermal camera. It can fall back to simulation if the sensor/library is unavailable.
     "thermal_enabled": True,
@@ -252,6 +260,8 @@ cameras = MultiCameraManager(lambda: cfg)
 thermal = ThermalCameraService(lambda: cfg)
 lora_simulator = LoraPacketSimulator(lambda: cfg)
 last_alert_states: Dict[str, bool] = {}
+
+esp32_serial_reader: Optional[ESP32SerialReader] = None
 
 
 def current_role() -> str:
@@ -482,6 +492,57 @@ def make_simulated_remote_node(slot: int) -> Dict[str, Any]:
     }
 
 
+def _overlay_serial_remote_node(node: Dict[str, Any], slot: int) -> Dict[str, Any]:
+    if not cfg.get("esp32_serial_enabled") or esp32_serial_reader is None:
+        return node
+    node_id = {1: "NODE_01", 2: "NODE_02", 3: "NODE_03"}.get(slot)
+    if not node_id:
+        return node
+    serial_data = esp32_serial_reader.get_cache().get(node_id)
+    if not serial_data:
+        return node
+    esp32_data = serial_data_to_esp32_format(serial_data)
+    sensor_summary = sensor_summary_from_serial(serial_data)
+    if node.get("placeholder"):
+        ip = str(node.get("rpi_ip") or node.get("ip") or "")
+        base_url = f"http://{ip}:{int(cfg.get('port', 8090))}" if ip else ""
+        return {
+            "firenode_api": True,
+            "timestamp": now_text(),
+            "role": "node",
+            "remote_slot": slot,
+            "expected_remote_slot": True,
+            "online": True,
+            "node_name": node.get("node_name") or node_name_from_ip(ip) or f"Remote-Node-{slot}",
+            "rpi_ip": ip,
+            "ip": ip,
+            "base_url": base_url,
+            "url": f"{base_url}/api/node-data" if base_url else "",
+            "esp32_ok": True,
+            "esp32_ip": node_id,
+            "esp32": esp32_data,
+            "sensor_summary": sensor_summary,
+            "chainsaw": {"running": False, "confirmed_detection": False, "instant_detection": False, "score": None, "error": "offline"},
+            "thermal": {"enabled": False, "running": False, "simulation": False, "detection": {"human_detected": False}},
+            "camera": {"enabled": False, "camera_count": 0},
+            "video_urls": [{
+                "type": "remote_camera_placeholder",
+                "label": f"Remote Node {slot} Video Placeholder",
+                "placeholder": True,
+                "message": "Node sensor data available via LoRa serial; remote RPi camera offline.",
+                "slot": slot,
+            }],
+        }
+    node["esp32_ok"] = True
+    node["esp32_ip"] = node_id
+    node["esp32"] = esp32_data
+    existing_summary = node.get("sensor_summary") or {}
+    for key in list(sensor_summary.keys()):
+        existing_summary[key] = sensor_summary[key]
+    node["sensor_summary"] = existing_summary
+    return node
+
+
 def build_remote_slots(remote_ips: List[str]) -> List[Dict[str, Any]]:
     """Always return exactly three remote node slots for the main-server dashboard."""
     clean_ips = []
@@ -528,6 +589,8 @@ def build_remote_slots(remote_ips: List[str]) -> List[Dict[str, Any]]:
             slots.append(node)
         else:
             slots.append(make_placeholder_remote_node(idx, ip))
+    for i, node in enumerate(slots):
+        slots[i] = _overlay_serial_remote_node(node, i + 1)
     return slots
 
 
@@ -555,9 +618,16 @@ def build_video_streams(base_url: str, cam_status: Dict[str, Any], thermal_statu
     streams: List[Dict[str, Any]] = []
     for cam in cam_status.get("cameras", []) or []:
         idx = int(cam.get("device_index", 0))
+        cam_type = cam.get("camera_type", "usb")
+        if cam_type == "csi":
+            label = "Raspberry Pi CSI Camera"
+            stream_type = "csi_camera"
+        else:
+            label = f"USB Camera /dev/video{idx}"
+            stream_type = "usb_camera"
         streams.append({
-            "type": "usb_camera",
-            "label": f"USB Camera /dev/video{idx}",
+            "type": stream_type,
+            "label": label,
             "url": f"{base_url}/video_feed/{idx}",
             "device_index": idx,
             "running": bool(cam.get("running")),
@@ -652,12 +722,28 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
             "data": esp32_data,
         }
     else:
-        esp32_result = fetch_esp32_data(selected_esp32_ip, timeout=float(cfg.get("esp32_fetch_timeout", 1.2))) if selected_esp32_ip else {
-            "ok": False,
-            "ip": "",
-            "error": "No ESP32 selected. Use Scan ESP32 and Select.",
-        }
-        esp32_data = esp32_result.get("data") if esp32_result.get("ok") else {}
+        serial_data = None
+        if cfg.get("esp32_serial_enabled") and esp32_serial_reader is not None:
+            serial_data = esp32_serial_reader.get_cache().get("MAIN")
+        if serial_data:
+            esp32_data = serial_data_to_esp32_format(serial_data)
+            esp32_result = {
+                "ok": True,
+                "ip": "SERIAL",
+                "url": "serial://MAIN",
+                "elapsed_ms": 0,
+                "data": esp32_data,
+            }
+        elif selected_esp32_ip:
+            esp32_result = fetch_esp32_data(selected_esp32_ip, timeout=float(cfg.get("esp32_fetch_timeout", 1.2)))
+            esp32_data = esp32_result.get("data") if esp32_result.get("ok") else {}
+        else:
+            esp32_result = {
+                "ok": False,
+                "ip": "",
+                "error": "No ESP32 selected. Use Scan ESP32 and Select.",
+            }
+            esp32_data = {}
     if not isinstance(esp32_data, dict):
         esp32_data = {}
 
@@ -846,12 +932,14 @@ def api_node_data():
 @app.route("/api/status")
 def api_status():
     local = get_local_node_data(include_alert_update=True)
+    serial_status = esp32_serial_reader.get_status() if esp32_serial_reader else {}
     return jsonify({
         "ok": True,
         "config": cfg,
         "network": get_network_summary(),
         "local": local,
         "recent_alerts": alert_logger.recent(50),
+        "serial": serial_status,
     })
 
 
@@ -864,14 +952,16 @@ def api_config():
     data = request.get_json(force=True, silent=True) or {}
     allowed_str = [
         "role", "operation_mode", "selected_esp32_ip", "esp32_scan_prefix", "node_scan_prefix",
-        "camera_backend", "camera_fourcc",
+        "camera_type", "camera_backend", "camera_fourcc",
         "detection_mode", "audio_browse_start_dir", "log_file",
         "thermal_i2c_address", "wifi_ssid", "wifi_password", "wifi_country", "wifi_interface",
+        "esp32_serial_port",
     ]
     allowed_int = [
         "port", "esp32_scan_workers", "camera_device_index", "camera_width", "camera_height", "camera_fps",
         "camera_jpeg_quality", "camera_open_warmup_frames", "sample_rate", "score_threshold", "require_hits", "history_windows",
         "thermal_refresh_rate_hz", "thermal_min_blob_pixels", "thermal_rotate_degrees", "lora_spreading_factor",
+        "esp32_serial_baud",
     ]
     allowed_float = [
         "esp32_fetch_timeout", "esp32_scan_timeout", "node_scan_timeout", "node_pull_timeout",
@@ -879,7 +969,7 @@ def api_config():
         "thermal_display_min_c", "thermal_display_max_c", "thermal_min_human_temp_c", "thermal_max_human_temp_c",
         "thermal_min_delta_above_ambient_c", "lora_sim_interval_sec", "lora_frequency_mhz", "lora_bandwidth_khz",
     ]
-    allowed_bool = ["camera_enabled", "camera_retry_on_failed_read", "auto_start", "thermal_enabled", "thermal_simulation", "thermal_mirror_x", "thermal_mirror_y", "lora_enabled", "event_recording_enabled"]
+    allowed_bool = ["camera_enabled", "camera_retry_on_failed_read", "auto_start", "thermal_enabled", "thermal_simulation", "thermal_mirror_x", "thermal_mirror_y", "lora_enabled", "event_recording_enabled", "esp32_serial_enabled"]
 
     for key in allowed_str:
         if key in data:
@@ -1273,6 +1363,16 @@ def main():
         thermal.start()
     if bool(cfg.get("auto_start", True)) and cfg.get("detection_mode", "live") == "live":
         detector.start()
+
+    global esp32_serial_reader
+    if cfg.get("esp32_serial_enabled") and current_role() == "server":
+        esp32_serial_reader = ESP32SerialReader(
+            port=str(cfg.get("esp32_serial_port", "/dev/ttyUSB0")),
+            baud=int(cfg.get("esp32_serial_baud", 115200)),
+            enabled=True,
+        )
+        esp32_serial_reader.start()
+        print(f"ESP32 serial reader started on {cfg.get('esp32_serial_port')} @ {cfg.get('esp32_serial_baud')}")
 
     print("")
     print("FireNode RPi Unified Main Server / Node Web GUI")

@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from .camera_stream import CameraStream
+from .csi_camera_stream import CsiCameraStream
 
 
 def parse_camera_indexes(value: Any, fallback: int = 0) -> List[int]:
@@ -38,12 +39,18 @@ def parse_camera_indexes(value: Any, fallback: int = 0) -> List[int]:
 
 
 class MultiCameraManager:
-    """Small wrapper around CameraStream so one RPi can expose multiple local USB webcams."""
+    """Manages local cameras: CSI (Picamera2) primary, USB (OpenCV) fallback."""
 
     def __init__(self, get_config: Callable[[], Dict[str, Any]]):
         self.get_config = get_config
         self.lock = threading.Lock()
         self.streams: Dict[int, CameraStream] = {}
+        self.csi_stream: Optional[CsiCameraStream] = None
+        self._csi_active: bool = False
+
+    def _csi_configured(self) -> bool:
+        cfg = self.get_config()
+        return str(cfg.get("camera_type", "csi")).lower() == "csi"
 
     def configured_indexes(self) -> List[int]:
         cfg = self.get_config()
@@ -57,7 +64,18 @@ class MultiCameraManager:
             return cfg
         return _getter
 
-    def sync_streams(self, start_missing: bool = True) -> None:
+    def _start_csi(self) -> bool:
+        if self.csi_stream is None:
+            self.csi_stream = CsiCameraStream(self.get_config)
+        return self.csi_stream.start()
+
+    def _stop_csi(self) -> None:
+        if self.csi_stream is not None:
+            self.csi_stream.stop()
+            self.csi_stream = None
+        self._csi_active = False
+
+    def _sync_usb_streams(self, start_missing: bool = True) -> None:
         cfg = self.get_config()
         enabled = bool(cfg.get("camera_enabled", True))
         indexes = self.configured_indexes()
@@ -74,6 +92,32 @@ class MultiCameraManager:
                 if start_missing:
                     self.streams[idx].start()
 
+    def sync_streams(self, start_missing: bool = True) -> None:
+        cfg = self.get_config()
+        enabled = bool(cfg.get("camera_enabled", True))
+        use_csi = self._csi_configured()
+
+        if use_csi and enabled:
+            # Stop any USB streams before attempting CSI
+            with self.lock:
+                for idx in list(self.streams.keys()):
+                    self.streams[idx].stop()
+                    self.streams.pop(idx, None)
+            if start_missing:
+                ok = self._start_csi()
+                if ok:
+                    self._csi_active = True
+                    return
+                # CSI failed; fall back to USB if allowed
+                self._stop_csi()
+                if bool(cfg.get("camera_usb_fallback", True)):
+                    self._sync_usb_streams(start_missing=start_missing)
+            return
+
+        # USB mode or disabled
+        self._stop_csi()
+        self._sync_usb_streams(start_missing=start_missing)
+
     def start_all(self) -> None:
         self.sync_streams(start_missing=True)
 
@@ -82,12 +126,15 @@ class MultiCameraManager:
             for stream in self.streams.values():
                 stream.stop()
             self.streams.clear()
+        self._stop_csi()
 
     def restart_all(self) -> None:
         self.stop_all()
         self.start_all()
 
-    def get_stream(self, index: int) -> CameraStream:
+    def get_stream(self, index: int) -> Any:
+        if self._csi_active and self.csi_stream is not None:
+            return self.csi_stream
         idx = int(index)
         with self.lock:
             if idx not in self.streams:
@@ -99,6 +146,24 @@ class MultiCameraManager:
 
     def get_status(self) -> Dict[str, Any]:
         self.sync_streams(start_missing=False)
+        cfg = self.get_config()
+        enabled = bool(cfg.get("camera_enabled", True))
+
+        if self._csi_active and self.csi_stream is not None:
+            csi_status = self.csi_stream.get_status()
+            csi_status["device_index"] = 0
+            csi_status["camera_type"] = "csi"
+            return {
+                "enabled": enabled,
+                "primary": csi_status,
+                "cameras": [csi_status],
+                "camera_count": 1,
+                "configured_indexes": [0],
+                # Backward compatibility fields
+                **csi_status,
+            }
+
+        # USB mode
         configured = self.configured_indexes()
         cameras = []
         with self.lock:
@@ -110,12 +175,14 @@ class MultiCameraManager:
                     "error": "Not started",
                     "frames": 0,
                     "device_index": idx,
+                    "camera_type": "usb",
                 }
                 status["device_index"] = idx
+                status["camera_type"] = "usb"
                 cameras.append(status)
-        primary = cameras[0] if cameras else {"running": False, "device_index": configured[0] if configured else 0}
+        primary = cameras[0] if cameras else {"running": False, "device_index": configured[0] if configured else 0, "camera_type": "usb"}
         return {
-            "enabled": bool(self.get_config().get("camera_enabled", True)),
+            "enabled": enabled,
             "primary": primary,
             "cameras": cameras,
             "camera_count": len(cameras),
@@ -125,4 +192,6 @@ class MultiCameraManager:
         }
 
     def mjpeg_generator(self, index: int):
-        return self.get_stream(index).mjpeg_generator()
+        if self._csi_active and self.csi_stream is not None:
+            return self.csi_stream.mjpeg_generator()
+        return self.get_stream(int(index)).mjpeg_generator()

@@ -1,5 +1,7 @@
 # Most packages are installed through apt for Raspberry Pi OS Legacy 32-bit.
 # The setup script creates a venv with --system-site-packages so apt-installed numpy/opencv/PIL are reused.
+# On Raspberry Pi OS, install picamera2 via apt:
+#   sudo apt install -y python3-picamera2
 Flask>=2.0
 requests>=2.25
 pyserial>=3.5
