@@ -3,7 +3,7 @@
 ## Handoff Summary
 The project has passed local software and firmware build validation. Codex is temporarily paused due to rate limits. Use VS Code + Roo Code + Kimi for small/medium tasks only.
 
-Latest hardware validation (2026-06-08):
+Latest hardware validation (2026-06-08 / 2026-06-09):
 - ESP32 MAIN + NODE_01 bench validation PASSED
 - LoRa two-way communication confirmed: MAIN → NODE_01 PASS; NODE_01 → MAIN PASS; RSSI approx -29 to -35 dBm; SNR approx 9.25 to 10.00
 - DHT22, PIR, MQ analog, and LoRa TX/RX are working on MAIN and NODE_01
@@ -12,15 +12,15 @@ Latest hardware validation (2026-06-08):
 - USB webcams deprecated from target design; replaced by Raspberry Pi Camera Rev 1.3 CSI
 - .51 MAIN: CSI camera detected successfully (ov5647 via `rpicam-hello --list-cameras`); dashboard works in LIVE mode.
 - .52 NODE_01: CSI camera detected successfully (same ov5647 sensor); stream visible on .51 main dashboard.
-- .51 can pull remote node data from .52.
-- .53 NODE_02 / .54 NODE_03: Raspberry Pi Camera Rev 1.3 CSI target hardware installed; pending physical confirmation
+- .53 NODE_02: CSI camera validated; `python3-picamera2` installed; live stream confirmed on local dashboard.
+- .54 NODE_03: CSI camera validated; `python3-picamera2` installed; live stream confirmed on local dashboard after syncing `modules/multi_camera_stream.py`.
 - MAIN ESP32 is physically connected to .51 by USB serial at /dev/ttyUSB0.
 - Minicom confirmed readable serial data at 115200 baud from MAIN ESP32.
 - MAIN ESP32 receives LoRa packets from NODE_01.
-- MAIN ESP32 USB serial integration implemented; **verification still pending**.
+- MAIN ESP32 USB serial integration implemented; **verification pending because MAIN .51 is currently unavailable**.
 
 ## Next Task
-Verify MAIN ESP32 USB serial integration on .51 RPi in live mode.
+Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when .51 is reachable.)
 
 ## Required First Checks
 Before editing, inspect:
@@ -33,7 +33,7 @@ Before editing, inspect:
 - docs/workbook/ADM_FireNode_Implementation_Workbook.xlsx
 
 ## Current Instruction
-Main server is deployed successfully at `192.168.9.51`; dashboard/API are working in LIVE mode. ESP32 MAIN + NODE_01 bench is validated. Do not modify firmware or architecture. The CSI camera code (`modules/csi_camera_stream.py` with Picamera2) is implemented and .51/.52 camera streams are working; NODE_01 camera is visible on the MAIN dashboard. MAIN ESP32 USB serial integration is implemented. Next step is verify on .51 that sensor cards populate from serial data for MAIN and NODE_01. Keep thermal camera path unchanged (hardware not installed yet). Keep ESP32/LoRa, and simulation fallback unchanged. USB microphone/chainsaw detection remains later work.
+Main server is deployed successfully at `192.168.9.51`; dashboard/API are working in LIVE mode. ESP32 MAIN + NODE_01 bench is validated. NODE_02 (.53) and NODE_03 (.54) CSI camera setup and validation are completed; all three nodes display live CSI camera streams on their local dashboards. Do not modify firmware or architecture. The CSI camera code (`modules/csi_camera_stream.py` with Picamera2) is implemented and .51/.52/.53/.54 camera streams are working locally; NODE_01 camera is visible on the MAIN dashboard. MAIN ESP32 USB serial integration is implemented. Next step is verify on .51 that sensor cards populate from serial data for MAIN and NODE_01. Keep thermal camera path unchanged (hardware not installed yet). Keep ESP32/LoRa, and simulation fallback unchanged. USB microphone/chainsaw detection remains later work.
 
 ## Local Implementation Done (2026-06-02)
 - `modules/csi_camera_stream.py` created (Picamera2, JPEG, MJPEG generator).
@@ -68,13 +68,30 @@ Main server is deployed successfully at `192.168.9.51`; dashboard/API are workin
 - Stream placeholder checks against `/video_feed` and main `/thermal.png`.
 - CSI camera validation: run `rpicam-hello --list-cameras` on target RPi, confirm ov5647 appears, then test still capture via rpicam-still or libcamera-vid pipeline.
 - Dashboard camera route after CSI implementation: `curl -I --max-time 5 http://192.168.9.51:8090/video_feed`.
-- **Serial validation (PENDING):**
+- **NODE_02/NODE_03 CSI validation (COMPLETED):**
+  - Confirm `python3-picamera2` is installed: `sudo apt install -y python3-picamera2`.
+  - Confirm `rpicam-hello --list-cameras` shows ov5647 on .53 and .54.
+  - Confirm local dashboard on .53 and .54 shows live CSI stream.
+  - Confirm `/api/node-data` on .53/.54 shows `camera_type=csi` and `video_urls` type `csi_camera`.
+  - Deployment sync checklist: `app.py`, `static/app.js`, `templates/dashboard.html`, `modules/csi_camera_stream.py`, `modules/multi_camera_stream.py`, `config.json` node-specific values, `.deployment.env` node-specific values.
+- **Serial validation (PENDING — blocked by .51 unavailability):**
   - Confirm `/dev/ttyUSB0` exists on .51.
   - Confirm minicom shows readable serial output at 115200.
   - Confirm `/api/status` shows `serial_connected: true` and `packets_by_node` includes MAIN and/or NODE_01.
   - Confirm `/api/server-dashboard` sensor cards populate with serial data for MAIN (local) and NODE_01 (remote slot 1).
   - Confirm NODE_01 camera is visible on MAIN dashboard in LIVE mode.
-  - Confirm NODE_02 and NODE_03 remain placeholders (offline) until hardware is built.
+  - Confirm NODE_02 and NODE_03 remain placeholders (offline) until ESP32 hardware is built.
+
+## Deployment Sync Checklist (for NODE_02/NODE_03 CSI alignment)
+When aligning a new or outdated node to the current CSI camera pipeline, ensure these files and configs are synchronized:
+- `app.py`
+- `static/app.js`
+- `templates/dashboard.html`
+- `modules/csi_camera_stream.py`
+- `modules/multi_camera_stream.py`
+- `config.json` node-specific values
+- `.deployment.env` node-specific values
+- Package dependency: `sudo apt install -y python3-picamera2`
 
 ## Next Exact Command
 
@@ -83,5 +100,6 @@ cd "/Users/macbookm1max321tb/A_Design/A_Coding/ADM Fire"
 # Deploy and validate MAIN ESP32 USB serial integration on .51 RPi in live mode
 # Keep thermal camera path unchanged
 # Keep ESP32/LoRa path unchanged
-# NODE_02/NODE_03 remain pending hardware assembly
+# NODE_02/NODE_03 ESP32 hardware remains pending assembly
+# Note: MAIN .51 is currently unavailable; centralized validation is pending.
 ```

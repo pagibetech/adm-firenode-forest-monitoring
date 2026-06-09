@@ -14,7 +14,7 @@ Before editing, read:
 Codex 5-hour limit is currently exhausted, so conserve Codex use.
 
 Continue only from the next incomplete task:
-Hardware Bench Validation Phase.
+Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; NODE_02/NODE_03 CSI camera validation is completed.)
 
 Do not make large architecture changes.
 Do not rewrite unrelated files.

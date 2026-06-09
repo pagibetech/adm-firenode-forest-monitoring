@@ -11,11 +11,12 @@ main
 Current known validation state:
 - Main RPi server 192.168.9.51 deployed and operational; dashboard works in LIVE mode.
 - Node RPi 192.168.9.52 (NODE_01) deployed and operational; CSI camera works and appears on .51 main dashboard.
-- Node RPis 192.168.9.53 (NODE_02) and 192.168.9.54 (NODE_03) are pending hardware build; placeholders.
+- Node RPi 192.168.9.53 (NODE_02) deployed and operational; CSI camera works and displays on local dashboard.
+- Node RPi 192.168.9.54 (NODE_03) deployed and operational; CSI camera works and displays on local dashboard.
 - .51 MAIN: CSI camera detected successfully (ov5647 [2592x1944 10-bit GBRG]; `rpicam-hello --list-cameras`).
 - .52 NODE_01: CSI camera detected successfully (same ov5647 sensor); appears on .51 main dashboard.
-- .53 NODE_02: Raspberry Pi Camera Rev 1.3 CSI target hardware installed; pending physical confirmation.
-- .54 NODE_03: Raspberry Pi Camera Rev 1.3 CSI target hardware installed; pending physical confirmation.
+- .53 NODE_02: Raspberry Pi CSI Camera validated; `rpicam-hello --list-cameras` confirmed ov5647; local dashboard shows live CSI stream.
+- .54 NODE_03: Raspberry Pi CSI Camera validated; `rpicam-hello --list-cameras` confirmed ov5647; local dashboard shows live CSI stream.
 - ESP32 MAIN + NODE_01 bench validation PASSED.
 - LoRa two-way communication confirmed: MAIN → NODE_01 PASS; NODE_01 → MAIN PASS; RSSI approx -29 to -35 dBm; SNR approx 9.25 to 10.00.
 - DHT22, PIR, MQ analog, and LoRa TX/RX are working on MAIN and NODE_01.
@@ -24,6 +25,9 @@ Current known validation state:
 - MAIN ESP32 is physically connected to .51 by USB serial at /dev/ttyUSB0.
 - Minicom confirmed readable serial data at 115200 baud from MAIN ESP32.
 - MAIN ESP32 receives LoRa packets from NODE_01.
+- NODE_02 and NODE_03 required `python3-picamera2` and sync of `app.py`, `static/app.js`, `templates/dashboard.html`, `modules/csi_camera_stream.py`, `modules/multi_camera_stream.py`, and node-specific config values.
+- NODE_03 root cause: outdated `modules/multi_camera_stream.py` lacked CSI/Picamera2 stream logic; resolved by copying current file from NODE_01.
+- MAIN SERVER .51 is currently unavailable, so centralized dashboard/live serial validation is still pending.
 
 Example received packet (NODE_01 via LoRa to MAIN ESP32):
 ```
@@ -36,7 +40,7 @@ Example MAIN local packet (MAIN ESP32 self-data):
 ```
 
 Current next incomplete milestone:
-Verify MAIN ESP32 USB serial integration on .51 RPi in live mode.
+Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable.)
 
 Current operating rule:
 Continue only from the next incomplete task. Do not start new architecture work until workflow memory, workbook, and status files are updated.
@@ -62,8 +66,8 @@ Implemented:
 Current deployment targets:
 - 192.168.9.51 = Main Server (FireNode-192-168-9-51)
 - 192.168.9.52 = Node 1 (FireNode-192-168-9-52)
-- 192.168.9.53 = Node 2 (FireNode-192-168-9-53) — pending hardware build
-- 192.168.9.54 = Node 3 (FireNode-192-168-9-54) — pending hardware build
+- 192.168.9.53 = Node 2 (FireNode-192-168-9-53) — CSI camera validated; ESP32 hardware pending assembly
+- 192.168.9.54 = Node 3 (FireNode-192-168-9-54) — CSI camera validated; ESP32 hardware pending assembly
 
 Current deployment mode:
 - MacBook-run SSH deployment using key `~/admfire`
@@ -86,6 +90,14 @@ Latest completed task:
 - Minicom confirmed readable serial data at 115200 from MAIN ESP32.
 - MAIN ESP32 receives LoRa packets from NODE_01.
 - LIVE mode working.
+- NODE_02 (.53) and NODE_03 (.54) CSI camera setup and validation completed.
+- All three nodes (.52, .53, .54) display live CSI camera stream on their local dashboards.
+- NODE_02 required `python3-picamera2`, sync of `app.py`, `static/app.js`, `templates/dashboard.html`, `modules/csi_camera_stream.py`, `modules/multi_camera_stream.py`, and config node identity corrections.
+- NODE_03 required `python3-picamera2`, sync of `app.py`, `modules/csi_camera_stream.py`, `modules/multi_camera_stream.py`, and config corrections; root cause was outdated `modules/multi_camera_stream.py`.
+- Confirmed package requirement: `sudo apt install -y python3-picamera2`.
+- Confirmed node configs:
+  - NODE_02: ADM_FIRE_NODE_NAME=node_02, ADM_FIRE_NODE_IP=192.168.9.53, ADM_FIRE_ROLE=node_02
+  - NODE_03: ADM_FIRE_NODE_NAME=node_03, ADM_FIRE_NODE_IP=192.168.9.54, ADM_FIRE_ROLE=node_03
 
 Camera hardware history:
 - USB webcam was a compatibility blocker (YUYV fails; MJPG distorted/corrupted on RPi 3B).
@@ -116,11 +128,11 @@ Dashboard node mapping:
 - NODE=NODE_03 → FireNode-192-168-9-54 (remote slot 3) — pending hardware
 
 Next exact command:
-- Verify MAIN ESP32 USB serial integration on .51 RPi in live mode.
+- Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 currently unavailable.)
 - Confirm sensor cards populate from serial data for MAIN and NODE_01.
 - Confirm NODE_01 camera visible on MAIN dashboard.
 - Confirm LIVE mode working.
 - Keep thermal camera path unchanged (hardware not installed yet).
 - Keep ESP32/LoRa path unchanged.
 - USB microphone/chainsaw detection remains later work.
-- NODE_02/NODE_03 remain pending hardware assembly.
+- NODE_02/NODE_03 ESP32 hardware remains pending assembly.

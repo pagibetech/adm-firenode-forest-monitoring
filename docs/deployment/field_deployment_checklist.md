@@ -65,6 +65,12 @@ rpicam-hello --list-cameras
 Expected output should include `ov5647 [2592x1944 10-bit GBRG]`.
 
 - USB webcam path is deprecated. Historical note: USB cameras showed YUYV failures and corrupted MJPG frames on RPi 3B; the project has moved to Raspberry Pi Camera Rev 1.3 via CSI.
+- Ensure `python3-picamera2` is installed on every node:
+
+```bash
+sudo apt install -y python3-picamera2
+```
+
 - After confirming CSI detection, test a still capture:
 
 ```bash
@@ -86,6 +92,16 @@ curl -I --max-time 5 http://<rpi-ip>:8090/video_feed
 ```text
 raspi/firenode-system/media/events/
 ```
+
+### CSI Camera Deployment Sync Checklist
+When aligning a node to the current CSI camera pipeline, ensure these files and configs are synchronized:
+- `app.py`
+- `static/app.js`
+- `templates/dashboard.html`
+- `modules/csi_camera_stream.py`
+- `modules/multi_camera_stream.py`
+- `config.json` node-specific values
+- `.deployment.env` node-specific values
 
 ## 6. ESP32 Serial Reader Validation (NEW)
 
@@ -133,6 +149,7 @@ Expected lines:
 - Confirm DHT22, PIR, MQ analog, and battery ADC readings are reasonable on each node.
 - If battery ADC appears floating/unconnected, verify voltage divider wiring and ADC pin assignment.
 - NODE_02 and NODE_03 ESP32 hardware are pending assembly; use same wiring/firmware as NODE_01 once hardware is ready.
+- NOTE: NODE_02 and NODE_03 Raspberry Pi CSI cameras are already validated and operational; only ESP32 + LoRa + sensor modules remain pending assembly.
 
 ## 9. Shutdown
 

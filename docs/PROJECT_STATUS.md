@@ -3,7 +3,8 @@
 ## Current Status
 - Main RPi server 192.168.9.51 deployed and operational; dashboard works in LIVE mode.
 - Node RPi 192.168.9.52 (NODE_01) deployed and operational; CSI camera works and appears on .51 main dashboard.
-- Node RPis 192.168.9.53 (NODE_02) and 192.168.9.54 (NODE_03) are pending hardware build; placeholders.
+- Node RPi 192.168.9.53 (NODE_02) deployed and operational; CSI camera works and displays on local dashboard.
+- Node RPi 192.168.9.54 (NODE_03) deployed and operational; CSI camera works and displays on local dashboard.
 - ESP32 MAIN + NODE_01 bench validation PASSED.
 - LoRa two-way communication confirmed between MAIN and NODE_01.
 - Thermal camera hardware not installed yet (preserved in architecture).
@@ -11,12 +12,14 @@
 - Raspberry Pi Camera Rev 1.3 (ov5647) via CSI is the official camera hardware.
 - .51 MAIN: CSI camera detected successfully (`rpicam-hello --list-cameras`: ov5647 [2592x1944 10-bit GBRG]).
 - .52 NODE_01: CSI camera detected successfully (same ov5647 sensor); stream visible on .51 dashboard.
-- .53 NODE_02: Raspberry Pi Camera Rev 1.3 CSI target hardware installed; pending physical confirmation.
-- .54 NODE_03: Raspberry Pi Camera Rev 1.3 CSI target hardware installed; pending physical confirmation.
+- .53 NODE_02: CSI camera validated; `rpicam-hello --list-cameras` confirmed ov5647; local dashboard shows live CSI stream.
+- .54 NODE_03: CSI camera validated; `rpicam-hello --list-cameras` confirmed ov5647; local dashboard shows live CSI stream.
 - MAIN ESP32 is physically connected to .51 by USB serial at /dev/ttyUSB0.
 - Minicom confirmed readable serial data at 115200 baud from MAIN ESP32.
 - MAIN ESP32 receives LoRa packets from NODE_01.
-- MAIN ESP32 USB serial integration implemented. Verification still pending.
+- MAIN ESP32 USB serial integration implemented. Verification pending because MAIN .51 is currently unavailable.
+- NODE_02 and NODE_03 required `python3-picamera2` and file sync (`app.py`, `static/app.js`, `templates/dashboard.html`, `modules/csi_camera_stream.py`, `modules/multi_camera_stream.py`, config).
+- NODE_03 root cause: outdated `modules/multi_camera_stream.py` lacked CSI/Picamera2 stream logic; resolved by copying current file from NODE_01.
 
 ## Completed Validation
 - Python tests passed
@@ -29,18 +32,23 @@
 - DHT22, PIR, MQ analog, and LoRa TX/RX working on MAIN and NODE_01
 - Thermal camera hardware not installed yet (preserved in architecture)
 - NODE_02 and NODE_03 ESP32 hardware not yet available/assembled
-- CSI camera hardware selection finalized and detection confirmed on .51 and .52
+- CSI camera hardware selection finalized and detection confirmed on .51, .52, .53, and .54
 - .52 NODE_01 CSI camera stream confirmed on .51 main dashboard
+- .53 NODE_02 CSI camera stream confirmed on local dashboard
+- .54 NODE_03 CSI camera stream confirmed on local dashboard
 - .51 can pull remote node data from .52
 - MAIN ESP32 USB serial integration implemented (modules/esp32_serial_reader.py, app.py, config updates)
 - NODE_01 camera visible on .51 main dashboard in LIVE mode
 - Minicom confirmed live serial output at 115200 from MAIN ESP32
+- NODE_02 and NODE_03 CSI camera setup and validation completed
+- All three nodes (.52, .53, .54) display live CSI camera stream on their local dashboards
+- `python3-picamera2` confirmed as required package on NODE_02 and NODE_03
 
 ## Next Incomplete Task
-Verify MAIN ESP32 USB serial integration on .51 RPi in live mode.
+Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when reachable.)
 
 ## Immediate Goal
-Verify that the MAIN RPi dashboard correctly displays sensor data from MAIN ESP32 USB serial for both local MAIN data and remote NODE_01 packets forwarded over LoRa, and that NODE_01 camera is visible on the MAIN dashboard in LIVE mode.
+Verify that the MAIN RPi dashboard correctly displays sensor data from MAIN ESP32 USB serial for both local MAIN data and remote NODE_01 packets forwarded over LoRa, and that NODE_01 camera is visible on the MAIN dashboard in LIVE mode. This validation is pending because MAIN .51 is currently unavailable.
 
 ## Implementation Summary (2026-06-02)
 - `modules/csi_camera_stream.py` created using Picamera2, JPEG output compatible with Flask MJPEG stream.
