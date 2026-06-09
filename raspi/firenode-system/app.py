@@ -269,6 +269,8 @@ def current_role() -> str:
 
 
 def operation_mode() -> str:
+    if current_role() == "node":
+        return "live"
     return "simulation" if str(cfg.get("operation_mode", "live")).lower() == "simulation" else "live"
 
 
@@ -820,6 +822,8 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
 
 @app.route("/")
 def index():
+    if current_role() == "node":
+        return render_template("node_dashboard.html")
     return render_template("dashboard.html")
 
 

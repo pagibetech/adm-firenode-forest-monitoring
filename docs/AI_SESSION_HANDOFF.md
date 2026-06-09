@@ -35,6 +35,16 @@ Before editing, inspect:
 ## Current Instruction
 Main server is deployed successfully at `192.168.9.51`; dashboard/API are working in LIVE mode. ESP32 MAIN + NODE_01 bench is validated. NODE_02 (.53) and NODE_03 (.54) CSI camera setup and validation are completed; all three nodes display live CSI camera streams on their local dashboards. Do not modify firmware or architecture. The CSI camera code (`modules/csi_camera_stream.py` with Picamera2) is implemented and .51/.52/.53/.54 camera streams are working locally; NODE_01 camera is visible on the MAIN dashboard. MAIN ESP32 USB serial integration is implemented. Next step is verify on .51 that sensor cards populate from serial data for MAIN and NODE_01. Keep thermal camera path unchanged (hardware not installed yet). Keep ESP32/LoRa, and simulation fallback unchanged. USB microphone/chainsaw detection remains later work.
 
+## Separate Node Dashboard (2026-06-09)
+- Separate NODE GUI implemented: `templates/node_dashboard.html` + `static/node_app.js` for NODE RPis only.
+- MAIN server dashboard preserved: `templates/dashboard.html` + `static/app.js` unchanged.
+- NODE GUI is one-page only (no tabs); shows local camera, sensor readings, chainsaw controls/status, alerts, recordings.
+- NODE simulation mode disabled: `operation_mode()` forced to `"live"` for node roles.
+- Chainsaw controls moved from Tools tab into NODE dashboard page.
+- `app.py` index() route: `current_role() == "node"` → `node_dashboard.html`; `"server"` → `dashboard.html`.
+- No ESP32/LoRa/thermal architecture changes.
+- `py_compile` all modules PASS.
+
 ## Local Implementation Done (2026-06-02)
 - `modules/csi_camera_stream.py` created (Picamera2, JPEG, MJPEG generator).
 - `modules/multi_camera_stream.py` updated (CSI primary, USB fallback, simulation preserved).

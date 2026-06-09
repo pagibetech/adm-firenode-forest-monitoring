@@ -129,6 +129,18 @@ Deployment role labels:
 ## Do Not Start Yet
 - Major architecture refactor
 - Camera/thermal integration changes
-- Dashboard redesign
+- Dashboard redesign (MAIN)
 - Multi-node live integration changes (until serial is verified)
 - ESP32/LoRa hardware validation (already done for MAIN + NODE_01)
+
+## Separate Node Dashboard (2026-06-09)
+- Separate NODE GUI implemented for NODE RPis only (.52/.53/.54).
+- New files: `templates/node_dashboard.html`, `static/node_app.js`.
+- Shared: `static/style.css`.
+- NODE GUI is one-page only with local camera, sensor readings, chainsaw controls/status, alerts, recordings.
+- MAIN server dashboard (`dashboard.html` + `app.js`) preserved unchanged.
+- NODE simulation mode disabled: `operation_mode()` forced to `"live"` for node roles.
+- Chainsaw controls moved from Tools tab into NODE dashboard page.
+- `app.py` index() route: `current_role() == "node"` → `node_dashboard.html`; `"server"` → `dashboard.html`.
+- No ESP32/LoRa/thermal architecture changes.
+- `py_compile` all modules PASS.

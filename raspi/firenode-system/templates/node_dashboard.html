@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FireNode Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar" style="flex-wrap:wrap;gap:8px">
+    <div>
+      <h1>FireNode Dashboard</h1>
+      <p>Local node view: CSI camera, sensor readings, chainsaw detection, and alerts.</p>
+    </div>
+    <div class="header-badges">
+      <span id="roleBadge" class="badge blue">Role: loading</span>
+      <span id="ipBadge" class="badge">IP: loading</span>
+      <span id="healthBadge" class="badge">Loading</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card wide node-identity">
+      <div>
+        <div class="label">This RPi Node ID</div>
+        <h2 id="nodeName">Loading...</h2>
+        <div class="pill-row">
+          <span id="baseUrl" class="pill">Web GUI</span>
+          <span id="esp32Badge" class="pill warn">ESP32 not selected</span>
+          <span id="cameraBadge" class="pill">Camera</span>
+          <span id="chainsawBadge" class="pill">Chainsaw detector</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <h2>Local Camera</h2>
+        <div id="localVideo" class="video-grid" style="grid-template-columns:1fr"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sensor Readings</h2>
+        <div id="localSensor" class="sensor-card">
+          <div class="muted">Loading sensor data...</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <div class="section-header">
+          <h2>Chainsaw Detector</h2>
+          <span id="chainsawStatusBadge" class="badge">Stopped</span>
+        </div>
+        <div class="button-row">
+          <button onclick="startDetector()" class="ok">Start Detection</button>
+          <button onclick="stopDetector()" class="danger">Stop Detection</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="sensor-line"><span>Status</span><strong id="chStatus">--</strong></div>
+          <div class="sensor-line"><span>Score</span><strong id="chScore">--</strong></div>
+          <div class="sensor-line"><span>RMS</span><strong id="chRms">--</strong></div>
+          <div class="sensor-line"><span>Alerts Total</span><strong id="chAlerts">--</strong></div>
+        </div>
+        <h3>Detector Settings</h3>
+        <div class="form-grid">
+          <label>Score Threshold
+            <input id="chScoreThreshold" type="number" min="10" max="200" step="1">
+          </label>
+          <label>Min RMS
+            <input id="chMinRms" type="number" min="0.001" max="1.0" step="0.001">
+          </label>
+          <label>Required Hits
+            <input id="chRequireHits" type="number" min="1" max="20" step="1">
+          </label>
+          <label>Cooldown (sec)
+            <input id="chCooldown" type="number" min="5" max="300" step="1">
+          </label>
+        </div>
+        <div style="margin-top:10px">
+          <button onclick="saveChainSettings()" class="primary full">Save Chainsaw Settings</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Audio File Chainsaw Test</h2>
+        <div class="form-grid single">
+          <label>Folder Path
+            <input id="browsePathInput" placeholder="test_audio, /home/pi, /media, /mnt">
+          </label>
+        </div>
+        <div class="button-row">
+          <button onclick="browseAudio()">Open Folder</button>
+          <button onclick="browseAudio('test_audio')">Included Test Audio</button>
+        </div>
+        <h3>USB Mic Devices</h3>
+        <div class="button-row" style="grid-template-columns:1fr">
+          <button onclick="loadMicDevices()">Refresh USB Mic List</button>
+        </div>
+        <div id="micDevices" class="result-list"></div>
+        <div id="audioBrowser" class="browser"></div>
+        <div id="analysisResult" class="json small-json"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>Recent Alerts</h2>
+        <button onclick="refreshNow()">Refresh Now</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Node</th><th>Source</th><th>Event</th><th>Severity</th><th>Message</th></tr></thead>
+          <tbody id="alertRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>Recent Recordings</h2>
+        <button onclick="loadRecordings()">Refresh Recordings</button>
+      </div>
+      <div id="recordingCards" class="recording-grid"></div>
+    </section>
+  </main>
+
+  <script src="/static/node_app.js"></script>
+</body>
+</html>

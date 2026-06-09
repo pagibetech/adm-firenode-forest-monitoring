@@ -76,7 +76,17 @@ Current deployment mode:
 - ESP32 MAIN + NODE_01 bench validated; NODE_02/NODE_03 pending hardware assembly
 - MAIN ESP32 USB serial integration implemented; verification still pending.
 
-Latest completed task:
+Latest completed task (2026-06-09):
+- Separate NODE GUI implemented: node_dashboard.html + node_app.js for NODE RPis only.
+- MAIN server dashboard (dashboard.html + app.js) preserved unchanged.
+- NODE GUI is one-page only (no tabs); shows local camera, sensor readings, chainsaw controls/status, alerts, recordings.
+- NODE simulation mode disabled/removed: operation_mode() forced to "live" for node roles.
+- Chainsaw controls moved from Tools tab into NODE dashboard page.
+- app.py index() route checks current_role(): "node" → node_dashboard.html; "server" → dashboard.html.
+- No ESP32/LoRa/thermal architecture changes.
+- py_compile validation passed for all modules.
+
+Previous completed task:
 - ESP32 MAIN + NODE_01 bench validation PASSED.
 - LoRa two-way communication confirmed between MAIN and NODE_01.
 - DHT22, PIR, MQ analog, and LoRa TX/RX validated on MAIN and NODE_01.
