@@ -750,34 +750,43 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
             }
         elif current_role() == "node" and cfg.get("esp32_serial_enabled") and esp32_serial_reader is not None:
             serial_status = esp32_serial_reader.get_status()
+            err_msg = str(serial_status.get("serial_error") or "")
+            is_port_missing = bool(err_msg and ("could not open" in err_msg.lower() or "no such file" in err_msg.lower()))
             if serial_status.get("serial_connected"):
                 esp32_result = {
                     "ok": False,
                     "ip": "",
-                    "error": "ESP32 Local Serial: Connected, waiting for data",
+                    "error": "ESP32 Local Serial: Waiting for UART data",
                 }
-            elif serial_status.get("serial_error"):
+            elif err_msg and not is_port_missing:
                 esp32_result = {
                     "ok": False,
                     "ip": "",
-                    "error": f"ESP32 Local Serial: {serial_status.get('serial_error')}",
+                    "error": f"ESP32 Local Serial: {err_msg}",
                 }
             else:
                 esp32_result = {
                     "ok": False,
                     "ip": "",
-                    "error": "ESP32 Local Serial: Disconnected",
+                    "error": "ESP32 Local Serial: Waiting for UART data",
                 }
             esp32_data = {}
         elif selected_esp32_ip:
             esp32_result = fetch_esp32_data(selected_esp32_ip, timeout=float(cfg.get("esp32_fetch_timeout", 1.2)))
             esp32_data = esp32_result.get("data") if esp32_result.get("ok") else {}
         else:
-            esp32_result = {
-                "ok": False,
-                "ip": "",
-                "error": "No ESP32 selected. Use Scan ESP32 and Select.",
-            }
+            if current_role() == "node":
+                esp32_result = {
+                    "ok": False,
+                    "ip": "",
+                    "error": "ESP32 Local Serial: Waiting for UART data",
+                }
+            else:
+                esp32_result = {
+                    "ok": False,
+                    "ip": "",
+                    "error": "No ESP32 selected. Use Scan ESP32 and Select.",
+                }
             esp32_data = {}
     if not isinstance(esp32_data, dict):
         esp32_data = {}

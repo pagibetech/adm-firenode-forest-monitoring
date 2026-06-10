@@ -44,17 +44,18 @@ function updateHeader(status) {
 
   var localSerial = status.local_serial || {};
   var espText;
-  if (localSerial.enabled && localSerial.connected && local.esp32_ok) {
-    espText = 'ESP32: ' + (local.esp32_ip || 'Serial') + ' (Serial)';
+  if (local.esp32_ok) {
+    if (localSerial.enabled && localSerial.connected) {
+      espText = 'ESP32: ' + (local.esp32_ip || 'Serial') + ' (Serial)';
+    } else {
+      espText = 'ESP32: ' + local.esp32_ip;
+    }
     setClass($('esp32Badge'), 'pill', 'green');
-  } else if (localSerial.enabled && localSerial.connected) {
-    espText = 'ESP32: Serial Waiting';
+  } else if (localSerial.enabled) {
+    espText = 'ESP32: Waiting for UART data';
     setClass($('esp32Badge'), 'pill', 'warn');
-  } else if (local.esp32_ok) {
-    espText = 'ESP32: ' + local.esp32_ip;
-    setClass($('esp32Badge'), 'pill', 'green');
   } else {
-    espText = local.esp32_error ? 'ESP32: ' + local.esp32_error : 'ESP32: not connected';
+    espText = 'ESP32: ' + (local.esp32_error || 'not connected');
     setClass($('esp32Badge'), 'pill', 'warn');
   }
   $('esp32Badge').textContent = espText;
@@ -123,12 +124,12 @@ function updateLocalSerial(localSerial) {
   } else if (localSerial.error) {
     $('serialConnBadge').textContent = 'Error';
     setClass($('serialConnBadge'), 'badge', 'red');
-    $('serialStatus').textContent = 'Disconnected';
+    $('serialStatus').textContent = 'Error';
     $('serialLastPacket').textContent = '--';
   } else {
-    $('serialConnBadge').textContent = 'Disconnected';
+    $('serialConnBadge').textContent = 'Waiting for UART data';
     setClass($('serialConnBadge'), 'badge', 'warn');
-    $('serialStatus').textContent = 'Disconnected';
+    $('serialStatus').textContent = 'Waiting for UART data';
     $('serialLastPacket').textContent = '--';
   }
 
@@ -149,16 +150,22 @@ function renderLocalSensor(local, localSerial) {
   var s = local.sensor_summary || {};
   var ch = local.chainsaw || {};
 
-  if (localSerial && localSerial.enabled && !local.esp32_ok && !local.esp32_error) {
-    box.innerHTML = '<div class="muted">ESP32 Local Serial: Disconnected / Waiting for data</div>';
+  if (localSerial && localSerial.enabled && !local.esp32_ok) {
+    var lines = [];
+    lines.push({ label: 'Temperature', value: '--', cls: 'muted' });
+    lines.push({ label: 'Humidity', value: '--', cls: 'muted' });
+    lines.push({ label: 'Smoke', value: 'Waiting', cls: 'muted' });
+    lines.push({ label: 'PIR Human', value: 'Waiting', cls: 'muted' });
+    lines.push({ label: 'Battery', value: '--', cls: 'muted' });
+    var html = '';
+    lines.forEach(function(l) {
+      html += '<div class="sensor-line"><span>' + l.label + '</span><strong>' + l.value + '</strong></div>';
+    });
+    box.innerHTML = html;
     return;
   }
   if (!local.esp32_ok && !local.esp32_error) {
     box.innerHTML = '<div class="muted">ESP32 not connected.</div>';
-    return;
-  }
-  if (!local.esp32_ok && localSerial && localSerial.enabled) {
-    box.innerHTML = '<div class="muted">' + (local.esp32_error || 'ESP32 Local Serial: Waiting for data') + '</div>';
     return;
   }
   var lines = [];
