@@ -297,30 +297,6 @@ function updateAlerts(alerts) {
   });
 }
 
-async function loadRecordings() {
-  var box = $('recordingCards');
-  if (!box) return;
-  try {
-    var data = await api('/api/recordings?limit=12');
-    var recordings = data.recordings || [];
-    box.innerHTML = '';
-    if (recordings.length === 0) {
-      box.innerHTML = '<div class="muted">No chainsaw recording snapshots saved yet.</div>';
-      return;
-    }
-    recordings.forEach(function(rec) {
-      var urls = rec.file_urls || [];
-      var img = urls.length ? '<img src="' + urls[0] + '" alt="' + safe(rec.event_type) + ' recording snapshot">' : '<div class="placeholder-box"><strong>No snapshot</strong></div>';
-      var card = document.createElement('div');
-      card.className = 'recording-card';
-      card.innerHTML = img + '<div class="recording-meta"><strong>' + safe(rec.event_type) + '</strong><span>' + safe(rec.node_name) + ' | ' + safe(rec.timestamp) + '</span></div>';
-      box.appendChild(card);
-    });
-  } catch (e) {
-    box.innerHTML = '<div class="muted">Recording list error: ' + e.message + '</div>';
-  }
-}
-
 async function refreshStatus() {
   try {
     var status = await api('/api/status');
@@ -344,7 +320,6 @@ async function refreshStatus() {
     $('healthBadge').className = 'badge ' + (hasAlert ? 'red' : 'green');
 
     updateAudioMonitor(ch, localSerial);
-    loadRecordings();
   } catch (e) {
     $('healthBadge').textContent = 'Dashboard Error';
     $('healthBadge').className = 'badge red';
@@ -518,7 +493,6 @@ window.addEventListener('load', function() {
   refreshStatus();
   loadMicDevices();
   browseAudio('test_audio');
-  loadRecordings();
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(refreshStatus, 3000);
   if (audioPollTimer) clearInterval(audioPollTimer);

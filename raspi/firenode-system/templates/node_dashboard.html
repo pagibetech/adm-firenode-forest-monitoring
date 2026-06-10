@@ -102,13 +102,14 @@
 
       <div class="card">
         <h2>Audio File Chainsaw Test</h2>
+        <div class="muted" style="margin-bottom:8px">Enter a folder path on this Raspberry Pi, then click Browse RPi Folder. This does not open a native folder dialog.</div>
         <div class="form-grid single">
           <label>Folder Path
             <input id="browsePathInput" placeholder="test_audio, /home/pi, /media, /mnt">
           </label>
         </div>
         <div class="button-row">
-          <button onclick="browseAudio()">Open Folder</button>
+          <button onclick="browseAudio()">Browse RPi Folder</button>
           <button onclick="browseAudio('test_audio')">Included Test Audio</button>
         </div>
         <h3>Audio Input Devices</h3>
@@ -132,14 +133,6 @@
           <tbody id="alertRows"></tbody>
         </table>
       </div>
-    </section>
-
-    <section class="card">
-      <div class="section-header">
-        <h2>Recent Recordings</h2>
-        <button onclick="loadRecordings()">Refresh Recordings</button>
-      </div>
-      <div id="recordingCards" class="recording-grid"></div>
     </section>
   </main>
 
