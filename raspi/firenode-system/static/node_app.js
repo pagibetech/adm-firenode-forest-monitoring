@@ -243,7 +243,7 @@ function updateAudioMonitor(ch, localSerial) {
   html += '<div class="audio-level-row"><span>RMS</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + rmsPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + rms.toFixed(4) + '</small></div>';
   html += '<div class="audio-level-row"><span>Peak</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + peakPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + peak.toFixed(4) + '</small></div>';
   html += '<canvas id="' + canvasId + '" class="audio-waveform"></canvas>';
-  html += '<div class="audio-meta"><span>Score: ' + safe(ch.score) + '</span><span>' + safe(ch.last_update, '--') + '</span></div>';
+  html += '<div class="audio-meta"><span>Score: ' + safe(ch.score) + (ch.sample_rate ? ' | ' + (ch.sample_rate / 1000).toFixed(1) + 'kHz' : '') + '</span><span>' + safe(ch.last_update, '--') + '</span></div>';
   box.innerHTML = html;
 
   var canvas = $(canvasId);
@@ -361,7 +361,8 @@ async function audioPoll() {
       score: data.score,
       waveform: data.waveform,
       last_update: data.last_update,
-      error: data.error
+      error: data.error,
+      sample_rate: data.sample_rate
     };
     updateAudioMonitor(ch, {});
   } catch (e) {}

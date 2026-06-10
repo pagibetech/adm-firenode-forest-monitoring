@@ -388,6 +388,7 @@ class ChainsawDetector:
             "error": None,
             "device": cfg.get("input_device"),
             "device_name": None,
+            "sample_rate": 0,
             "alerts_total": 0,
         }
 
@@ -451,12 +452,23 @@ class ChainsawDetector:
 
         while not self.stop_event.is_set():
             try:
-                sample_rate = int(self.cfg.get("sample_rate", 16000))
+                cfg_rate = int(self.cfg.get("sample_rate", 16000))
                 window_sec = float(self.cfg.get("window_sec", 1.0))
-                frames = int(sample_rate * window_sec)
                 device = self.cfg.get("input_device", None)
                 if device in ["", "None", "null"]:
                     device = None
+
+                sample_rate = cfg_rate
+                if device is not None:
+                    try:
+                        dev_info = sd.query_devices(device=device)
+                        dev_rate = int(dev_info.get("default_samplerate", 0))
+                        if dev_rate > 0 and dev_rate != cfg_rate:
+                            sample_rate = dev_rate
+                    except Exception:
+                        pass
+
+                frames = int(sample_rate * window_sec)
 
                 audio = sd.rec(
                     frames,
@@ -496,6 +508,7 @@ class ChainsawDetector:
                         "last_update": now_text(),
                         "error": None,
                         "device": device,
+                        "sample_rate": sample_rate,
                     })
 
                 if confirmed:

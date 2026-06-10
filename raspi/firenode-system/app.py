@@ -851,9 +851,12 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
             "instant_detection": chainsaw_status.get("instant_detection"),
             "score": chainsaw_status.get("score"),
             "rms": chainsaw_status.get("rms"),
+            "peak": chainsaw_status.get("peak"),
+            "waveform": chainsaw_status.get("waveform"),
             "last_update": chainsaw_status.get("last_update"),
             "alerts_total": chainsaw_status.get("alerts_total"),
             "error": chainsaw_status.get("error"),
+            "sample_rate": chainsaw_status.get("sample_rate", 0),
         },
         "camera": cam_status,
         "thermal": thermal_status,
@@ -1344,6 +1347,7 @@ def api_audio_monitor():
         "last_update": ds.get("last_update"),
         "error": ds.get("error"),
         "input_device": ds.get("device"),
+        "sample_rate": ds.get("sample_rate", 0),
     })
 
 
