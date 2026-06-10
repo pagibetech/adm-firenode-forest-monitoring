@@ -33,6 +33,18 @@
       </div>
     </section>
 
+    <section class="card wide" id="serialStatusCard">
+      <div class="section-header">
+        <h2>ESP32 Local Serial</h2>
+        <span id="serialConnBadge" class="badge warn">Disconnected</span>
+      </div>
+      <div class="sensor-line"><span>Status</span><strong id="serialStatus">Disconnected</strong></div>
+      <div class="sensor-line"><span>Serial Port</span><strong id="serialPort">--</strong></div>
+      <div class="sensor-line"><span>Last Packet</span><strong id="serialLastPacket">--</strong></div>
+      <div class="sensor-line"><span>Node IDs Seen</span><strong id="serialNodeIds">--</strong></div>
+      <div id="serialErrorRow" class="sensor-line" style="display:none"><span>Error</span><strong id="serialError" class="bad-text">--</strong></div>
+    </section>
+
     <section class="two-col">
       <div class="card">
         <h2>Local Camera</h2>

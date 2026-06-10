@@ -42,9 +42,22 @@ function updateHeader(status) {
   setClass($('roleBadge'), 'badge', 'blue');
   $('ipBadge').textContent = 'IP: ' + safe(local.rpi_ip || network.rpi_ip);
 
-  var espText = local.esp32_ok ? 'ESP32: ' + local.esp32_ip : 'ESP32: ' + (local.esp32_error || 'not connected');
+  var localSerial = status.local_serial || {};
+  var espText;
+  if (localSerial.enabled && localSerial.connected && local.esp32_ok) {
+    espText = 'ESP32: ' + (local.esp32_ip || 'Serial') + ' (Serial)';
+    setClass($('esp32Badge'), 'pill', 'green');
+  } else if (localSerial.enabled && localSerial.connected) {
+    espText = 'ESP32: Serial Waiting';
+    setClass($('esp32Badge'), 'pill', 'warn');
+  } else if (local.esp32_ok) {
+    espText = 'ESP32: ' + local.esp32_ip;
+    setClass($('esp32Badge'), 'pill', 'green');
+  } else {
+    espText = local.esp32_error ? 'ESP32: ' + local.esp32_error : 'ESP32: not connected';
+    setClass($('esp32Badge'), 'pill', 'warn');
+  }
   $('esp32Badge').textContent = espText;
-  setClass($('esp32Badge'), 'pill', local.esp32_ok ? 'green' : 'warn');
 
   var cam = local.camera || {};
   var camLabel = safe(cam.camera_label, 'Camera');
@@ -86,12 +99,66 @@ function renderLocalCamera(local) {
   });
 }
 
-function renderLocalSensor(local) {
+function updateLocalSerial(localSerial) {
+  if (!localSerial) localSerial = {};
+  var enabled = localSerial.enabled;
+  var connected = localSerial.connected;
+
+  $('serialStatusCard').style.display = enabled ? '' : 'none';
+
+  if (!enabled) return;
+
+  $('serialPort').textContent = localSerial.port || '--';
+
+  if (connected && localSerial.last_packet_time) {
+    $('serialConnBadge').textContent = 'Connected';
+    setClass($('serialConnBadge'), 'badge', 'green');
+    $('serialStatus').textContent = 'Connected';
+    $('serialLastPacket').textContent = localSerial.last_packet_time;
+  } else if (connected) {
+    $('serialConnBadge').textContent = 'Waiting for data';
+    setClass($('serialConnBadge'), 'badge', 'warn');
+    $('serialStatus').textContent = 'Connected (no packet yet)';
+    $('serialLastPacket').textContent = '--';
+  } else if (localSerial.error) {
+    $('serialConnBadge').textContent = 'Error';
+    setClass($('serialConnBadge'), 'badge', 'red');
+    $('serialStatus').textContent = 'Disconnected';
+    $('serialLastPacket').textContent = '--';
+  } else {
+    $('serialConnBadge').textContent = 'Disconnected';
+    setClass($('serialConnBadge'), 'badge', 'warn');
+    $('serialStatus').textContent = 'Disconnected';
+    $('serialLastPacket').textContent = '--';
+  }
+
+  if (localSerial.error) {
+    $('serialErrorRow').style.display = '';
+    $('serialError').textContent = localSerial.error;
+  } else {
+    $('serialErrorRow').style.display = 'none';
+  }
+
+  var nodeIds = localSerial.cache_keys || [];
+  var pkts = localSerial.packets_by_node || {};
+  $('serialNodeIds').textContent = nodeIds.length ? nodeIds.join(', ') : '--';
+}
+
+function renderLocalSensor(local, localSerial) {
   var box = $('localSensor');
   var s = local.sensor_summary || {};
   var ch = local.chainsaw || {};
+
+  if (localSerial && localSerial.enabled && !local.esp32_ok && !local.esp32_error) {
+    box.innerHTML = '<div class="muted">ESP32 Local Serial: Disconnected / Waiting for data</div>';
+    return;
+  }
   if (!local.esp32_ok && !local.esp32_error) {
     box.innerHTML = '<div class="muted">ESP32 not connected.</div>';
+    return;
+  }
+  if (!local.esp32_ok && localSerial && localSerial.enabled) {
+    box.innerHTML = '<div class="muted">' + (local.esp32_error || 'ESP32 Local Serial: Waiting for data') + '</div>';
     return;
   }
   var lines = [];
@@ -177,10 +244,12 @@ async function loadRecordings() {
 async function refreshStatus() {
   try {
     var status = await api('/api/status');
+    var localSerial = status.local_serial || {};
     updateHeader(status);
+    updateLocalSerial(localSerial);
     currentLocal = status.local;
     renderLocalCamera(currentLocal);
-    renderLocalSensor(currentLocal);
+    renderLocalSensor(currentLocal, localSerial);
     updateChainsawDisplay(currentLocal.chainsaw || {});
     updateChainsawSettings(status.config || {});
     updateAlerts(status.recent_alerts || []);

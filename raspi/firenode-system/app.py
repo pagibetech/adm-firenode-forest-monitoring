@@ -105,6 +105,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "esp32_serial_port": "/dev/ttyUSB0",
     "esp32_serial_baud": 115200,
 
+    # ESP32 UART serial port for NODE RPis (GPIO UART: /dev/serial0)
+    "esp32_serial_node_port": "/dev/serial0",
+
     # Local cameras. camera_type = "csi" uses Picamera2; "usb" uses OpenCV V4L2 fallback.
     "camera_enabled": True,
     "camera_type": "csi",
@@ -726,16 +729,46 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
     else:
         serial_data = None
         if cfg.get("esp32_serial_enabled") and esp32_serial_reader is not None:
-            serial_data = esp32_serial_reader.get_cache().get("MAIN")
+            cache = esp32_serial_reader.get_cache()
+            if current_role() == "node":
+                for node_id, data in cache.items():
+                    if node_id != "MAIN":
+                        serial_data = data
+                        break
+                if not serial_data and cache:
+                    serial_data = next(iter(cache.values()))
+            else:
+                serial_data = cache.get("MAIN")
         if serial_data:
             esp32_data = serial_data_to_esp32_format(serial_data)
             esp32_result = {
                 "ok": True,
                 "ip": "SERIAL",
-                "url": "serial://MAIN",
+                "url": f"serial://{serial_data.get('node_id', 'UNKNOWN')}",
                 "elapsed_ms": 0,
                 "data": esp32_data,
             }
+        elif current_role() == "node" and cfg.get("esp32_serial_enabled") and esp32_serial_reader is not None:
+            serial_status = esp32_serial_reader.get_status()
+            if serial_status.get("serial_connected"):
+                esp32_result = {
+                    "ok": False,
+                    "ip": "",
+                    "error": "ESP32 Local Serial: Connected, waiting for data",
+                }
+            elif serial_status.get("serial_error"):
+                esp32_result = {
+                    "ok": False,
+                    "ip": "",
+                    "error": f"ESP32 Local Serial: {serial_status.get('serial_error')}",
+                }
+            else:
+                esp32_result = {
+                    "ok": False,
+                    "ip": "",
+                    "error": "ESP32 Local Serial: Disconnected",
+                }
+            esp32_data = {}
         elif selected_esp32_ip:
             esp32_result = fetch_esp32_data(selected_esp32_ip, timeout=float(cfg.get("esp32_fetch_timeout", 1.2)))
             esp32_data = esp32_result.get("data") if esp32_result.get("ok") else {}
@@ -937,6 +970,15 @@ def api_node_data():
 def api_status():
     local = get_local_node_data(include_alert_update=True)
     serial_status = esp32_serial_reader.get_status() if esp32_serial_reader else {}
+    local_serial = {
+        "enabled": bool(cfg.get("esp32_serial_enabled")),
+        "connected": serial_status.get("serial_connected", False) if serial_status else False,
+        "port": str(cfg.get("esp32_serial_node_port" if current_role() == "node" else "esp32_serial_port", "")),
+        "error": serial_status.get("serial_error") if serial_status else None,
+        "last_packet_time": serial_status.get("last_packet_time") if serial_status else None,
+        "packets_by_node": serial_status.get("packets_by_node", {}) if serial_status else {},
+        "cache_keys": serial_status.get("cache_keys", []) if serial_status else [],
+    }
     return jsonify({
         "ok": True,
         "config": cfg,
@@ -944,6 +986,7 @@ def api_status():
         "local": local,
         "recent_alerts": alert_logger.recent(50),
         "serial": serial_status,
+        "local_serial": local_serial,
     })
 
 
@@ -959,7 +1002,7 @@ def api_config():
         "camera_type", "camera_backend", "camera_fourcc",
         "detection_mode", "audio_browse_start_dir", "log_file",
         "thermal_i2c_address", "wifi_ssid", "wifi_password", "wifi_country", "wifi_interface",
-        "esp32_serial_port",
+        "esp32_serial_port", "esp32_serial_node_port",
     ]
     allowed_int = [
         "port", "esp32_scan_workers", "camera_device_index", "camera_width", "camera_height", "camera_fps",
@@ -1369,14 +1412,19 @@ def main():
         detector.start()
 
     global esp32_serial_reader
-    if cfg.get("esp32_serial_enabled") and current_role() == "server":
+    if cfg.get("esp32_serial_enabled"):
+        role = current_role()
+        if role == "node":
+            port = str(cfg.get("esp32_serial_node_port", "/dev/serial0"))
+        else:
+            port = str(cfg.get("esp32_serial_port", "/dev/ttyUSB0"))
         esp32_serial_reader = ESP32SerialReader(
-            port=str(cfg.get("esp32_serial_port", "/dev/ttyUSB0")),
+            port=port,
             baud=int(cfg.get("esp32_serial_baud", 115200)),
             enabled=True,
         )
         esp32_serial_reader.start()
-        print(f"ESP32 serial reader started on {cfg.get('esp32_serial_port')} @ {cfg.get('esp32_serial_baud')}")
+        print(f"ESP32 serial reader started on {port} @ {cfg.get('esp32_serial_baud')}")
 
     print("")
     print("FireNode RPi Unified Main Server / Node Web GUI")

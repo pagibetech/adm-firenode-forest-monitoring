@@ -1,8 +1,19 @@
 # ESP32 Serial Reader Integration Update
 
-Date: 2026-06-02 / 2026-06-08
-Task: Integrate MAIN ESP32 USB serial data into the RPi dashboard.
-Status: **IMPLEMENTED / VERIFICATION PENDING**
+Date: 2026-06-02 / 2026-06-08 / 2026-06-10
+Task: Integrate ESP32 serial data into RPi dashboards (MAIN + NODE).
+Status: **IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
+
+## 2026-06-10 Update: NODE Local ESP32 Serial/UART Status
+- NODE RPis now start the serial reader on `/dev/serial0` (GPIO UART) when role is "node".
+- `config.json` key added: `esp32_serial_node_port` (default: "/dev/serial0").
+- `get_local_node_data()` for node roles: first checks local serial cache for non-MAIN node IDs; falls back to HTTP ESP32 if no serial data.
+- `/api/status` now exposes `local_serial` object with: enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
+- NODE dashboard (node_dashboard.html + node_app.js): ESP32 Local Serial card with green/yellow/red indicator.
+- NODE sensor readings prefer local serial cache; show "Waiting for data" placeholder when no packets received.
+- No ESP32 firmware changes. MAIN dashboard behavior preserved.
+- No "Scan ESP32 and Select" required for local NODE serial data.
+- py_compile all modules PASS.
 
 ## Files Created
 - `raspi/firenode-system/modules/esp32_serial_reader.py`
@@ -70,10 +81,11 @@ Status: **IMPLEMENTED / VERIFICATION PENDING**
 9. Update counters and `last_packet_time`.
 
 ## Dashboard Mapping Summary
-- **NODE=MAIN** → Local node (`FireNode-192-168-9-51`) sensor card.
-- **NODE=NODE_01** → Remote slot 1 (`FireNode-192-168-9-52`) sensor card.
+- **NODE=MAIN** → Local node (`FireNode-192-168-9-51`) sensor card on MAIN dashboard.
+- **NODE=NODE_01** → Remote slot 1 (`FireNode-192-168-9-52`) sensor card on MAIN dashboard.
 - **NODE=NODE_02** → Remote slot 2 (`FireNode-192-168-9-53`) sensor card — pending hardware build.
 - **NODE=NODE_03** → Remote slot 3 (`FireNode-192-168-9-54`) sensor card — pending hardware build.
+- **NODE local serial** (.52/.53/.54): Each NODE RPi shows its paired ESP32 data from local UART (/dev/serial0) on the NODE dashboard.
 - Nodes without serial data remain placeholders (offline) unless pulled via HTTP.
 - HTTP fallback for ESP32 data is preserved when serial is disabled or no data exists.
 
@@ -84,12 +96,15 @@ Status: **IMPLEMENTED / VERIFICATION PENDING**
 - No changes to CSI camera, thermal camera, or ESP32 firmware.
 
 ## Pending Verification
-- [ ] Confirm `/dev/ttyUSB0` exists and minicom shows readable output on .51.
-- [ ] Confirm `/api/status` shows `serial_connected: true` and `packets_by_node` includes MAIN/NODE_01.
-- [ ] Confirm `/api/server-dashboard` sensor cards populate from serial data.
+- [ ] Confirm `/dev/ttyUSB0` exists and minicom shows readable output on .51 (MAIN).
+- [ ] Confirm `/dev/serial0` exists on .52/.53/.54 (NODE GPIO UART).
+- [ ] Confirm `/api/status` shows `local_serial.connected: true` and `local_serial.packets_by_node` on .51 and .52/.53/.54.
+- [ ] Confirm `/api/server-dashboard` sensor cards populate from serial data on .51.
+- [ ] Confirm NODE dashboard ESP32 Local Serial card shows green/yellow/red appropriately on .52/.53/.54.
+- [ ] Confirm NODE sensor readings populate from local serial cache on .52/.53/.54.
 - [ ] Confirm NODE_01 camera is visible on MAIN dashboard in LIVE mode.
 - [ ] Confirm NODE_01 remote slot 1 shows data when LoRa packets are received.
-- [ ] Confirm NODE_02 and NODE_03 remain placeholders (offline).
+- [ ] Confirm NODE_02 and NODE_03 remain placeholders (offline) on MAIN dashboard.
 - [ ] Confirm HTTP ESP32 fallback works when serial is disabled.
 
 ## Suggested Commit Message

@@ -45,7 +45,7 @@
 - `python3-picamera2` confirmed as required package on NODE_02 and NODE_03
 
 ## Next Incomplete Task
-Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when reachable.)
+Validate NODE local ESP32 serial/UART status on NODE_03 (.54) and NODE_01 (.52). Verify ESP32 Local Serial card works: "Disconnected" before UART wiring, "Connected" with data after wiring. Also verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when reachable.)
 
 ## Immediate Goal
 Verify that the MAIN RPi dashboard correctly displays sensor data from MAIN ESP32 USB serial for both local MAIN data and remote NODE_01 packets forwarded over LoRa, and that NODE_01 camera is visible on the MAIN dashboard in LIVE mode. This validation is pending because MAIN .51 is currently unavailable.
@@ -133,8 +133,12 @@ Deployment role labels:
 - Multi-node live integration changes (until serial is verified)
 - ESP32/LoRa hardware validation (already done for MAIN + NODE_01)
 
-## Separate Node Dashboard (2026-06-09)
+## Separate Node Dashboard + Local Serial (2026-06-09 / 2026-06-10)
 - Separate NODE GUI implemented for NODE RPis only (.52/.53/.54).
+- NODE local ESP32 serial/UART status indicator added (2026-06-10): green/yellow/red ESP32 Local Serial card on node dashboard.
+- app.py updated: esp32_serial_node_port config (/dev/serial0), node serial reader startup, local serial cache priority, /api/status local_serial fields.
+- config.json updated with esp32_serial_node_port default.
+- No ESP32 firmware changes. MAIN dashboard preserved.
 - New files: `templates/node_dashboard.html`, `static/node_app.js`.
 - Shared: `static/style.css`.
 - NODE GUI is one-page only with local camera, sensor readings, chainsaw controls/status, alerts, recordings.

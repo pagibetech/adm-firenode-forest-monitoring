@@ -40,7 +40,7 @@ Example MAIN local packet (MAIN ESP32 self-data):
 ```
 
 Current next incomplete milestone:
-Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable.)
+Validate NODE local ESP32 serial/UART status on NODE_03 (.54) and other nodes. Verify ESP32 Local Serial card works (shows "Disconnected" before UART wiring, "Connected" with sensor data after wiring). Also verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable.)
 
 Current operating rule:
 Continue only from the next incomplete task. Do not start new architecture work until workflow memory, workbook, and status files are updated.
@@ -76,7 +76,16 @@ Current deployment mode:
 - ESP32 MAIN + NODE_01 bench validated; NODE_02/NODE_03 pending hardware assembly
 - MAIN ESP32 USB serial integration implemented; verification still pending.
 
-Latest completed task (2026-06-09):
+Latest completed task (2026-06-10):
+- NODE local ESP32 serial/UART status added to NODE dashboard.
+- app.py updated: DEFAULT_CONFIG adds esp32_serial_node_port (/dev/serial0); main() starts serial reader for node role on GPIO UART; get_local_node_data() prioritizes local serial cache for node role; /api/status exposes local_serial fields (enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys).
+- NODE dashboard (node_dashboard.html + node_app.js) now shows ESP32 Local Serial card with green/yellow/red indicator near the top.
+- NODE sensor readings source from local serial cache when available, else show "Waiting for data" placeholder.
+- NODE GUI does not require "Scan ESP32 and Select" for local serial data.
+- No ESP32 firmware changes. MAIN dashboard behavior preserved.
+- py_compile validation passed for all modules.
+
+Previous completed task (2026-06-09):
 - Separate NODE GUI implemented: node_dashboard.html + node_app.js for NODE RPis only.
 - MAIN server dashboard (dashboard.html + app.js) preserved unchanged.
 - NODE GUI is one-page only (no tabs); shows local camera, sensor readings, chainsaw controls/status, alerts, recordings.
@@ -118,18 +127,19 @@ Thermal camera history:
 - MLX90640 thermal camera is part of MAIN only; not yet installed but preserved in architecture.
 - Thermal camera path remains unchanged; no removal.
 
-ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08):
-- **STATUS: IMPLEMENTED / VERIFICATION PENDING**
-- Created modules/esp32_serial_reader.py to read MAIN ESP32 USB serial at /dev/ttyUSB0 115200.
-- Parses NODE=MAIN and NODE=NODE_01 packets; caches latest per node ID.
+ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08 / 2026-06-10):
+- **STATUS: IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
+- Created modules/esp32_serial_reader.py to read ESP32 serial at /dev/ttyUSB0 (MAIN) or /dev/serial0 (NODE) at 115200 baud.
+- Parses NODE=MAIN, NODE=NODE_01, NODE=NODE_02, NODE=NODE_03 packets; caches latest per node ID.
 - Ignores decorative lines (===== LORA RX =====, [RSSI], [SNR], etc.).
-- app.py now prioritizes serial cache in live mode for MAIN sensor data.
+- app.py now prioritizes serial cache in live mode for MAIN sensor data (cache["MAIN"]) and NODE sensor data (first non-MAIN cache entry).
 - Remote node slots overlay serial data so NODE_01 appears when packets arrive.
-- Config keys added: esp32_serial_enabled, esp32_serial_port, esp32_serial_baud.
-- Status endpoint /api/status exposes serial_connected, serial_error, last_packet_time, packets_by_node.
+- NODE local ESP32 serial/UART status indicator added to node dashboard: green=connected+data, yellow=connected waiting, red=error/disconnected.
+- Config keys: esp32_serial_enabled, esp32_serial_port, esp32_serial_baud, esp32_serial_node_port.
+- /api/status exposes local_serial fields: enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
 - py_compile and parsing unit tests passed.
 - No camera, thermal, or ESP32 firmware changes made.
-- **NOT YET VERIFIED ON HARDWARE:** Live-mode validation of sensor card population on .51 is still pending.
+- **NOT YET VERIFIED ON HARDWARE:** Live-mode validation of sensor card population on .51 is still pending. NODE local serial validation pending UART wiring on .52/.53/.54.
 
 Dashboard node mapping:
 - NODE=MAIN → FireNode-192-168-9-51 (local node on MAIN RPi)
@@ -138,6 +148,10 @@ Dashboard node mapping:
 - NODE=NODE_03 → FireNode-192-168-9-54 (remote slot 3) — pending hardware
 
 Next exact command:
+- Verify NODE local ESP32 serial/UART status on NODE_03: curl -s --max-time 5 http://192.168.9.54:8090/api/status | head -c 2000
+- Verify NODE local ESP32 serial/UART status on NODE_01: curl -s --max-time 5 http://192.168.9.52:8090/api/status | head -c 2000
+- Confirm NODE dashboard shows ESP32 Local Serial card with green/yellow/red indicator.
+- Confirm ESP32 Local Serial shows "Disconnected" before physical UART wiring, "Connected" with sensor data after wiring.
 - Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 currently unavailable.)
 - Confirm sensor cards populate from serial data for MAIN and NODE_01.
 - Confirm NODE_01 camera visible on MAIN dashboard.
