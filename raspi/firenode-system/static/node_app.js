@@ -200,6 +200,13 @@ function updateChainsawDisplay(ch) {
   $('chScore').textContent = safe(ch.score);
   $('chRms').textContent = safe(ch.rms);
   $('chAlerts').textContent = safe(ch.alerts_total, '0');
+
+  if (ch.error) {
+    $('chErrorRow').style.display = '';
+    $('chError').textContent = ch.error;
+  } else {
+    $('chErrorRow').style.display = 'none';
+  }
 }
 
 function updateChainsawSettings(config) {
@@ -282,8 +289,29 @@ async function refreshNow() {
 }
 
 async function startDetector() {
-  await api('/api/start', { method: 'POST' });
+  $('chStatus').textContent = 'Starting...';
+  $('chainsawStatusBadge').textContent = 'Starting';
+  $('chainsawStatusBadge').className = 'badge warn';
+  try {
+    var res = await api('/api/start', { method: 'POST' });
+    if (!res.started && res.status && res.status.error) {
+      $('chStatus').textContent = 'Stopped';
+      $('chainsawStatusBadge').textContent = 'Error';
+      $('chainsawStatusBadge').className = 'badge red';
+      $('chErrorRow').style.display = '';
+      $('chError').textContent = res.status.error;
+      return;
+    }
+  } catch (e) {
+    $('chStatus').textContent = 'Stopped';
+    $('chainsawStatusBadge').textContent = 'Error';
+    $('chainsawStatusBadge').className = 'badge red';
+    $('chErrorRow').style.display = '';
+    $('chError').textContent = 'Start failed: ' + e.message;
+    return;
+  }
   await refreshStatus();
+  setTimeout(refreshStatus, 1500);
 }
 
 async function stopDetector() {
@@ -313,24 +341,43 @@ async function loadMicDevices() {
   try {
     var data = await api('/api/devices');
     if (!data.devices || data.devices.length === 0) {
-      box.innerHTML = '<div class="muted">No USB microphone input found.</div>';
+      box.innerHTML = '<div class="muted">No audio input devices found.</div>';
       return;
     }
+    var selectedDevice = (currentConfig.input_device !== undefined && currentConfig.input_device !== null && currentConfig.input_device !== '') ? Number(currentConfig.input_device) : null;
     box.innerHTML = '';
     data.devices.forEach(function(d) {
       var div = document.createElement('div');
-      div.className = 'result-item';
-      div.innerHTML = '<div><strong>ID ' + d.id + '</strong><div class="meta">' + d.name + ' | ' + d.max_input_channels + ' ch | ' + Math.round(d.default_samplerate) + ' Hz</div></div>';
+      var isSelected = (selectedDevice !== null && Number(d.id) === selectedDevice);
+      div.className = 'result-item' + (isSelected ? ' selected-device' : '');
+      var label = '<div><strong>ID ' + d.id + (isSelected ? ' (selected)' : '') + '</strong><div class="meta">' + d.name + ' | ' + d.max_input_channels + ' ch | ' + Math.round(d.default_samplerate) + ' Hz</div></div>';
+      var btn = isSelected ? '<span class="badge green">Active</span>' : '<button onclick="selectMicDevice(' + d.id + ')">Select</button>';
+      div.innerHTML = label + btn;
       box.appendChild(div);
     });
   } catch (e) {
-    box.innerHTML = '<div class="muted">Mic list error: ' + e.message + '</div>';
+    box.innerHTML = '<div class="muted">Device list error: ' + e.message + '</div>';
+  }
+}
+
+async function selectMicDevice(deviceId) {
+  try {
+    var payload = { input_device: Number(deviceId) };
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    currentConfig.input_device = Number(deviceId);
+    await loadMicDevices();
+  } catch (e) {
+    alert('Device select failed: ' + e.message);
   }
 }
 
 async function browseAudio(path) {
   var box = $('audioBrowser');
-  var target = path || $('browsePathInput').value || 'test_audio';
+  var target = path || $('browsePathInput').value.trim();
+  if (!target) {
+    box.innerHTML = '<div class="muted">Enter a folder path and click Open Folder, or use Included Test Audio.</div>';
+    return;
+  }
   box.innerHTML = '<div class="muted">Opening folder...</div>';
   try {
     var data = await api('/api/browse?path=' + encodeURIComponent(target));
@@ -368,7 +415,7 @@ async function browseAudio(path) {
       box.insertAdjacentHTML('beforeend', '<div class="muted">No supported audio files in this folder. Supported: WAV, MP3, M4A, AAC, FLAC, OGG.</div>');
     }
   } catch (e) {
-    box.innerHTML = '<div class="muted">Browse error: ' + e.message + '</div>';
+    box.innerHTML = '<div class="browser-path">' + target + '</div><div class="muted">Browse error: ' + e.message + '</div>';
   }
 }
 

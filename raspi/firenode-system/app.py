@@ -1254,7 +1254,12 @@ def api_start():
     save_config()
     detector.update_config(cfg)
     started = detector.start()
-    return jsonify({"ok": True, "started": started, "status": detector.get_status()})
+    if started:
+        time.sleep(0.6)
+    status = detector.get_status()
+    if started and not status.get("running") and status.get("error"):
+        started = False
+    return jsonify({"ok": True, "started": started, "status": status})
 
 
 @app.route("/api/stop", methods=["POST"])

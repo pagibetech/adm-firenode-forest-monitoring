@@ -74,6 +74,7 @@
           <div class="sensor-line"><span>Score</span><strong id="chScore">--</strong></div>
           <div class="sensor-line"><span>RMS</span><strong id="chRms">--</strong></div>
           <div class="sensor-line"><span>Alerts Total</span><strong id="chAlerts">--</strong></div>
+          <div id="chErrorRow" class="sensor-line" style="display:none"><span>Error</span><strong id="chError" class="bad-text">--</strong></div>
         </div>
         <h3>Detector Settings</h3>
         <div class="form-grid">
@@ -106,9 +107,9 @@
           <button onclick="browseAudio()">Open Folder</button>
           <button onclick="browseAudio('test_audio')">Included Test Audio</button>
         </div>
-        <h3>USB Mic Devices</h3>
+        <h3>Audio Input Devices</h3>
         <div class="button-row" style="grid-template-columns:1fr">
-          <button onclick="loadMicDevices()">Refresh USB Mic List</button>
+          <button onclick="loadMicDevices()">Refresh Device List</button>
         </div>
         <div id="micDevices" class="result-list"></div>
         <div id="audioBrowser" class="browser"></div>
