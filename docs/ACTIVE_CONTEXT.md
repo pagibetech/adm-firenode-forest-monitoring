@@ -77,6 +77,7 @@ Current deployment mode:
 - MAIN ESP32 USB serial integration implemented; verification still pending.
 
 Latest completed task (2026-06-10):
+- 10 synthetic chainsaw/audio test WAV files added to test_audio/: chainsaw_close_loud, chainsaw_far_low_volume, chainsaw_idle_loop, chainsaw_cutting_pulse, forest_background_quiet, wind_noise, rain_noise, human_voice_false_positive, vehicle_engine_false_positive, silence_baseline. All 44100 Hz mono 16-bit PCM, 5-8 seconds each. Designed for phone-speaker-to-RPi-mic testing across varied levels and false-positive categories.
 - NODE local ESP32 serial/UART status added to NODE dashboard.
 - app.py updated: DEFAULT_CONFIG adds esp32_serial_node_port (/dev/serial0); main() starts serial reader for node role on GPIO UART; get_local_node_data() prioritizes local serial cache for node role; /api/status exposes local_serial fields (enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys).
 - NODE dashboard (node_dashboard.html + node_app.js) now shows ESP32 Local Serial card with green/yellow/red indicator near the top.
