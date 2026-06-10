@@ -1286,18 +1286,45 @@ def api_mode():
 
 @app.route("/api/devices")
 def api_devices():
+    arecord_ok = False
+    live_names = set()
+    try:
+        proc = subprocess.run(
+            ["arecord", "-l"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if proc.returncode == 0:
+            arecord_ok = True
+            for line in proc.stdout.splitlines():
+                if line.startswith("card ") and ":" in line:
+                    bracket = line.find("[")
+                    if bracket > 0:
+                        name = line[bracket + 1:].split("]", 1)[0].strip().lower()
+                        live_names.add(name)
+    except Exception:
+        pass
+
+    if arecord_ok and not live_names:
+        return jsonify({"ok": True, "devices": []})
+
     try:
         import sounddevice as sd
         devices = sd.query_devices()
         data = []
         for idx, dev in enumerate(devices):
-            if int(dev.get("max_input_channels", 0)) > 0:
-                data.append({
-                    "id": idx,
-                    "name": dev.get("name", f"Device {idx}"),
-                    "max_input_channels": int(dev.get("max_input_channels", 0)),
-                    "default_samplerate": float(dev.get("default_samplerate", 0)),
-                })
+            if int(dev.get("max_input_channels", 0)) <= 0:
+                continue
+            dev_name = str(dev.get("name", f"Device {idx}")).lower()
+            if live_names:
+                matched = any(lname and lname in dev_name for lname in live_names)
+                if not matched:
+                    continue
+            data.append({
+                "id": idx,
+                "name": dev.get("name", f"Device {idx}"),
+                "max_input_channels": int(dev.get("max_input_channels", 0)),
+                "default_samplerate": float(dev.get("default_samplerate", 0)),
+            })
         return jsonify({"ok": True, "devices": data})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "devices": []})
