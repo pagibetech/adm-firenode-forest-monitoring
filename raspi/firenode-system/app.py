@@ -1330,6 +1330,23 @@ def api_devices():
         return jsonify({"ok": False, "error": str(e), "devices": []})
 
 
+@app.route("/api/audio-monitor")
+def api_audio_monitor():
+    ds = detector.get_status()
+    running = bool(ds.get("running"))
+    return jsonify({
+        "ok": True,
+        "running": running,
+        "rms": ds.get("rms", 0.0),
+        "peak": ds.get("peak", 0.0),
+        "score": ds.get("score", 0.0),
+        "waveform": ds.get("waveform", []),
+        "last_update": ds.get("last_update"),
+        "error": ds.get("error"),
+        "input_device": ds.get("device"),
+    })
+
+
 @app.route("/api/browse")
 def api_browse():
     path = resolve_path(request.args.get("path"))

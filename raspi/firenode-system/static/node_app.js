@@ -209,6 +209,72 @@ function updateChainsawDisplay(ch) {
   }
 }
 
+var audioPollTimer = null;
+
+function updateAudioMonitor(ch, localSerial) {
+  var box = $('audioMonitor');
+  if (!box) return;
+
+  var hasMic = (currentConfig.input_device !== undefined && currentConfig.input_device !== null && currentConfig.input_device !== '');
+  var running = ch.running;
+
+  if (!hasMic) {
+    box.innerHTML = '<div class="muted">No audio input device selected. Use Refresh Device List below.</div>';
+    return;
+  }
+  if (!running) {
+    box.innerHTML = '<div class="muted">Mic available, detector stopped. Click Start Detection to monitor live audio.</div>';
+    return;
+  }
+
+  if (ch.error) {
+    box.innerHTML = '<div><span class="bad-text">Error: ' + ch.error + '</span></div>';
+    return;
+  }
+
+  var rms = Number(ch.rms) || 0;
+  var peak = Number(ch.peak) || 0;
+  var rmsPct = Math.min(100, Math.round(rms * 2000));
+  var peakPct = Math.min(100, Math.round(peak * 250));
+
+  var wf = ch.waveform || [];
+  var canvasId = 'audioWaveCanvas';
+  var html = '';
+  html += '<div class="audio-level-row"><span>RMS</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + rmsPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + rms.toFixed(4) + '</small></div>';
+  html += '<div class="audio-level-row"><span>Peak</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + peakPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + peak.toFixed(4) + '</small></div>';
+  html += '<canvas id="' + canvasId + '" class="audio-waveform"></canvas>';
+  html += '<div class="audio-meta"><span>Score: ' + safe(ch.score) + '</span><span>' + safe(ch.last_update, '--') + '</span></div>';
+  box.innerHTML = html;
+
+  var canvas = $(canvasId);
+  if (canvas && wf.length > 0) {
+    var ctx = canvas.getContext('2d');
+    var cw = canvas.offsetWidth || canvas.parentElement.offsetWidth - 2;
+    var ch = 56;
+    canvas.width = cw;
+    canvas.height = ch;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    var mid = ch / 2;
+    var scale = (ch - 4) / 2;
+    for (var i = 0; i < wf.length; i++) {
+      var x = (i / (wf.length - 1)) * cw;
+      var y = mid - wf[i] * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(34,197,94,0.15)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(cw, mid);
+    ctx.stroke();
+  }
+}
+
 function updateChainsawSettings(config) {
   $('chScoreThreshold').value = config.score_threshold !== undefined ? config.score_threshold : 60;
   $('chMinRms').value = config.min_rms !== undefined ? config.min_rms : 0.015;
@@ -277,11 +343,28 @@ async function refreshStatus() {
     $('healthBadge').textContent = hasAlert ? 'ALERT ACTIVE' : 'System Monitoring';
     $('healthBadge').className = 'badge ' + (hasAlert ? 'red' : 'green');
 
+    updateAudioMonitor(ch, localSerial);
     loadRecordings();
   } catch (e) {
     $('healthBadge').textContent = 'Dashboard Error';
     $('healthBadge').className = 'badge red';
   }
+}
+
+async function audioPoll() {
+  try {
+    var data = await api('/api/audio-monitor');
+    var ch = {
+      running: data.running,
+      rms: data.rms,
+      peak: data.peak,
+      score: data.score,
+      waveform: data.waveform,
+      last_update: data.last_update,
+      error: data.error
+    };
+    updateAudioMonitor(ch, {});
+  } catch (e) {}
 }
 
 async function refreshNow() {
@@ -437,4 +520,6 @@ window.addEventListener('load', function() {
   loadRecordings();
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(refreshStatus, 3000);
+  if (audioPollTimer) clearInterval(audioPollTimer);
+  audioPollTimer = setInterval(audioPoll, 600);
 });

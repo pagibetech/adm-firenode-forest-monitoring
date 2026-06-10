@@ -381,10 +381,13 @@ class ChainsawDetector:
             "instant_detection": False,
             "score": 0.0,
             "rms": 0.0,
+            "peak": 0.0,
+            "waveform": [],
             "bands": {},
             "last_update": None,
             "error": None,
             "device": cfg.get("input_device"),
+            "device_name": None,
             "alerts_total": 0,
         }
 
@@ -465,6 +468,14 @@ class ChainsawDetector:
                 sd.wait()
                 audio = audio.flatten()
 
+                peak = float(np.max(np.abs(audio))) if len(audio) > 0 else 0.0
+                wav_len = len(audio)
+                if wav_len > 200:
+                    step = max(1, wav_len // 150)
+                    waveform = [float(audio[i]) for i in range(0, wav_len, step)][:150]
+                else:
+                    waveform = [float(x) for x in audio]
+
                 res = analyze_audio(audio, sample_rate, self.cfg)
                 instant = bool(res.get("detected", False))
 
@@ -479,6 +490,8 @@ class ChainsawDetector:
                         "confirmed_detection": confirmed,
                         "score": res.get("score", 0.0),
                         "rms": res.get("rms", 0.0),
+                        "peak": peak,
+                        "waveform": waveform,
                         "bands": res.get("bands", {}),
                         "last_update": now_text(),
                         "error": None,

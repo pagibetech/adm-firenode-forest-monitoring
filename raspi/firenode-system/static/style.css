@@ -225,6 +225,24 @@ code { background: #050914; padding: 2px 5px; border-radius: 5px; }
 .recording-meta { padding: 10px; display: grid; gap: 4px; }
 .recording-meta strong { color: var(--text); }
 .recording-meta span { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+.audio-monitor { margin-bottom: 12px; }
+.audio-level-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.audio-level-row span { font-size: 12px; color: var(--muted); min-width: 36px; }
+.audio-bar-bg {
+  flex: 1; height: 14px; background: #060b19; border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.audio-bar-fill {
+  height: 100%; border-radius: 7px; transition: width 0.15s ease-out;
+  background: linear-gradient(90deg, var(--green), var(--orange), var(--red));
+}
+.audio-waveform {
+  width: 100%; height: 56px; background: #060b19; border-radius: 8px;
+  border: 1px solid var(--border); margin: 6px 0;
+}
+.audio-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
 @media (max-width: 1200px) {
   .recording-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
