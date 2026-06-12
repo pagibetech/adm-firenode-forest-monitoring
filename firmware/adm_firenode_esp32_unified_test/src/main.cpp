@@ -14,8 +14,10 @@
 //   "NODE_03"
 // =====================================================
 
-//#define NODE_ID "NODE_01"
+// #define NODE_ID "NODE_01"
+#ifndef NODE_ID
 #define NODE_ID "MAIN"
+#endif
 
 
 // Sensors
