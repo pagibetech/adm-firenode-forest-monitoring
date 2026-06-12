@@ -97,11 +97,13 @@ Status: **IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
 
 ## Pending Verification
 - [ ] Confirm `/dev/ttyUSB0` exists and minicom shows readable output on .51 (MAIN).
-- [ ] Confirm `/dev/serial0` exists on .52/.53/.54 (NODE GPIO UART).
-- [ ] Confirm `/api/status` shows `local_serial.connected: true` and `local_serial.packets_by_node` on .51 and .52/.53/.54.
+- [x] Confirm `/dev/serial0` exists on .54 (NODE03 — VERIFIED 2026-06-12).
+- [ ] Confirm `/dev/serial0` exists on .52/.53 (NODE01/NODE02 — not yet checked).
+- [x] Confirm `/api/status` shows `local_serial.connected: true` on .54 (VERIFIED).
+- [x] Confirm NODE dashboard ESP32 Local Serial card works on .54 (VERIFIED — yellow "Waiting for UART data").
+- [ ] Confirm NODE sensor readings populate from local serial cache (pending ESP32 UART wiring).
+- [ ] Confirm `/api/status` shows `local_serial` on .51 (blocked: .51 unavailable).
 - [ ] Confirm `/api/server-dashboard` sensor cards populate from serial data on .51.
-- [ ] Confirm NODE dashboard ESP32 Local Serial card shows green/yellow/red appropriately on .52/.53/.54.
-- [ ] Confirm NODE sensor readings populate from local serial cache on .52/.53/.54.
 - [ ] Confirm NODE_01 camera is visible on MAIN dashboard in LIVE mode.
 - [ ] Confirm NODE_01 remote slot 1 shows data when LoRa packets are received.
 - [ ] Confirm NODE_02 and NODE_03 remain placeholders (offline) on MAIN dashboard.

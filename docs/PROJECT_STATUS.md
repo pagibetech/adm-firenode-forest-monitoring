@@ -45,7 +45,30 @@
 - `python3-picamera2` confirmed as required package on NODE_02 and NODE_03
 
 ## Next Incomplete Task
-Validate NODE local ESP32 serial/UART status on NODE_03 (.54) and NODE_01 (.52). Verify ESP32 Local Serial card works: "Disconnected" before UART wiring, "Connected" with data after wiring. Also verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when reachable.)
+- Wire ESP32 to NODE03 (.54) GPIO UART for live sensor data.
+- Verify NODE01 (.52) and NODE02 (.53) UART readiness.
+- Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable.)
+- Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
+
+## NODE03 UART Readiness — VERIFIED (2026-06-12)
+- /dev/serial0 exists on NODE03.
+- Serial reader started and connected (local_serial.connected=true, local_serial.port=/dev/serial0).
+- ESP32 Local Serial card shows "Waiting for UART data" (yellow) — correct pre-wiring state.
+- API: /api/status returns local_serial with enabled=true, connected=true, error=null.
+- UART hardware enabled on RPi (enable_uart=1 in /boot/config.txt).
+
+## Chainsaw Detector UX — IMPLEMENTED (2026-06-10)
+- Audio Input Devices renamed + device selection with Select button.
+- Detector error row visible in chainsaw status card.
+- Start Detection shows "Starting..." (yellow) with delayed re-poll for runtime feedback.
+- /api/start backend checks if thread died within 0.6s.
+- Audio visualizer: RMS bar, Peak bar, waveform canvas, score + sample rate meta. Fast-poll 600ms.
+- Sample rate fix: detector uses device default_samplerate (44100 Hz) instead of hardcoded 16000 Hz.
+
+## Live Device Enumeration Fix — IMPLEMENTED (2026-06-10)
+- /api/devices replaced sounddevice.query_devices() (cached) with subprocess arecord -l (live ALSA query).
+- Cross-references with sounddevice by name for PortAudio-compatible device IDs.
+- Empty arecord output → returns empty device list (correct after USB mic unplugged).
 
 ## Immediate Goal
 Verify that the MAIN RPi dashboard correctly displays sensor data from MAIN ESP32 USB serial for both local MAIN data and remote NODE_01 packets forwarded over LoRa, and that NODE_01 camera is visible on the MAIN dashboard in LIVE mode. This validation is pending because MAIN .51 is currently unavailable.

@@ -40,7 +40,9 @@ Example MAIN local packet (MAIN ESP32 self-data):
 ```
 
 Current next incomplete milestone:
-Validate NODE local ESP32 serial/UART status on NODE_03 (.54) and other nodes. Verify ESP32 Local Serial card works (shows "Disconnected" before UART wiring, "Connected" with sensor data after wiring). Also verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable.)
+- NODE03 (.54) UART READINESS VERIFIED: /dev/serial0 exists, serial reader connected, ESP32 Local Serial card shows "Waiting for UART data" (yellow). Next: wire ESP32 to NODE03 GPIO UART for live data.
+- MAIN ESP32 USB serial integration on .51 RPi in live mode still pending. (Blocked: MAIN .51 is currently unavailable.)
+- NODE01 (.52) and NODE02 (.53) UART readiness not yet verified.
 
 Current operating rule:
 Continue only from the next incomplete task. Do not start new architecture work until workflow memory, workbook, and status files are updated.
@@ -76,19 +78,46 @@ Current deployment mode:
 - ESP32 MAIN + NODE_01 bench validated; NODE_02/NODE_03 pending hardware assembly
 - MAIN ESP32 USB serial integration implemented; verification still pending.
 
-Latest completed task (2026-06-10):
-- Real audio validation pack added under test_audio_real/ with 10 FM-synthesized realistic WAV files in 3 categories:
-  - positive_chainsaw/: chainsaw_start, chainsaw_cutting, chainsaw_idle, chainsaw_long (start→cut→idle cycle)
-  - negative_non_chainsaw/: motorcycle, rain_wind, forest_ambient, human_voice, engine_generator
-  - borderline/: brush_cutter
-  All 44100 Hz mono 16-bit PCM, 8-18s each. README.md documents expected score ranges per file.
-- NODE local ESP32 serial/UART status added to NODE dashboard.
-- app.py updated: DEFAULT_CONFIG adds esp32_serial_node_port (/dev/serial0); main() starts serial reader for node role on GPIO UART; get_local_node_data() prioritizes local serial cache for node role; /api/status exposes local_serial fields (enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys).
-- NODE dashboard (node_dashboard.html + node_app.js) now shows ESP32 Local Serial card with green/yellow/red indicator near the top.
-- NODE sensor readings source from local serial cache when available, else show "Waiting for data" placeholder.
-- NODE GUI does not require "Scan ESP32 and Select" for local serial data.
-- No ESP32 firmware changes. MAIN dashboard behavior preserved.
-- py_compile validation passed for all modules.
+Latest completed tasks (2026-06-10 / 2026-06-12):
+
+### NODE GUI cleanup
+- Removed "Scan ESP32 and Select" wording from NODE dashboard; replaced with "Waiting for UART data" neutral/yellow state.
+- Removed Recent Recordings card (not implemented).
+- Renamed "Open Folder" to "Browse RPi Folder" with helper text explaining in-page browsing behavior.
+
+### Chainsaw detector UX
+- Renamed "USB Mic Devices" to "Audio Input Devices" with device selection (Select button → POST input_device to /api/config).
+- Added detector error row in chainsaw status card.
+- Start Detection now shows "Starting..." (yellow) with delayed re-poll for runtime feedback.
+- /api/start backend checks if detector thread died within 0.6s and reports started=false with error.
+
+### Audio visualizer
+- Added Audio Input Monitor section to chainsaw card: RMS level bar (green→orange→red), Peak bar, waveform canvas (green line on dark bg), score + sample rate meta.
+- Fast-poll /api/audio-monitor every 600ms. Detector stores last audio buffer waveform (150 points) + peak in status.
+- Shows contextual messages: no device selected, detector stopped, monitoring, error.
+
+### Sample rate fix
+- USB PnP Sound Device native rate 44100 Hz; detector config had 16000 Hz causing PaErrorCode -9997.
+- detector._loop() now queries device default_samplerate and uses it when device selected.
+- Actual sample_rate exposed via /api/audio-monitor and /api/status chainsaw block.
+
+### Live device enumeration fix
+- /api/devices was returning stale PortAudio-cached devices after USB mic unplugged.
+- Replaced with subprocess arecord -l for real-time ALSA hardware query.
+- Cross-references arecord output with sounddevice list by name for PortAudio-compatible indices.
+- When arecord reports no capture hardware, returns empty device list.
+
+### Real audio validation pack
+- test_audio_validation/ created with positive_chainsaw/ (6 real Google Drive recordings converted to mono 44100Hz 16-bit clips), negative_non_chainsaw/, borderline/.
+- Published docs/audio/CHAINSAW_AUDIO_AUDIT.md audit report covering 30 files across repo + Google Drive.
+- Negative real-world samples still need manual download or phone recording.
+
+### NODE03 validation
+- Latest node dashboard deployed and operational on .54.
+- /dev/serial0 exists and serial reader connected (local_serial.connected=true).
+- UART enabled, waiting for ESP32 data packets.
+- Camera operational (CSI ov5647, HTTP 200 on /video_feed).
+- Audio visualizer and chainsaw detector UX verified on NODE03.
 
 Previous completed task (2026-06-09):
 - Separate NODE GUI implemented: node_dashboard.html + node_app.js for NODE RPis only.
@@ -132,8 +161,8 @@ Thermal camera history:
 - MLX90640 thermal camera is part of MAIN only; not yet installed but preserved in architecture.
 - Thermal camera path remains unchanged; no removal.
 
-ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08 / 2026-06-10):
-- **STATUS: IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
+ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08 / 2026-06-10 / 2026-06-12):
+- **STATUS: IMPLEMENTED / NODE03 UART VERIFIED / MAIN .51 PENDING**
 - Created modules/esp32_serial_reader.py to read ESP32 serial at /dev/ttyUSB0 (MAIN) or /dev/serial0 (NODE) at 115200 baud.
 - Parses NODE=MAIN, NODE=NODE_01, NODE=NODE_02, NODE=NODE_03 packets; caches latest per node ID.
 - Ignores decorative lines (===== LORA RX =====, [RSSI], [SNR], etc.).
@@ -142,9 +171,11 @@ ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08 / 2026-06-10):
 - NODE local ESP32 serial/UART status indicator added to node dashboard: green=connected+data, yellow=connected waiting, red=error/disconnected.
 - Config keys: esp32_serial_enabled, esp32_serial_port, esp32_serial_baud, esp32_serial_node_port.
 - /api/status exposes local_serial fields: enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
+- NODE03 (.54) VERIFIED: /dev/serial0 exists, serial reader connected (local_serial.connected=true), waiting for ESP32 data.
+- NODE01 (.52) and NODE02 (.53) UART not yet verified.
 - py_compile and parsing unit tests passed.
 - No camera, thermal, or ESP32 firmware changes made.
-- **NOT YET VERIFIED ON HARDWARE:** Live-mode validation of sensor card population on .51 is still pending. NODE local serial validation pending UART wiring on .52/.53/.54.
+- **MAIN .51 verification still pending** (unavailable).
 
 Dashboard node mapping:
 - NODE=MAIN → FireNode-192-168-9-51 (local node on MAIN RPi)
@@ -153,15 +184,11 @@ Dashboard node mapping:
 - NODE=NODE_03 → FireNode-192-168-9-54 (remote slot 3) — pending hardware
 
 Next exact command:
-- Verify NODE local ESP32 serial/UART status on NODE_03: curl -s --max-time 5 http://192.168.9.54:8090/api/status | head -c 2000
-- Verify NODE local ESP32 serial/UART status on NODE_01: curl -s --max-time 5 http://192.168.9.52:8090/api/status | head -c 2000
-- Confirm NODE dashboard shows ESP32 Local Serial card with green/yellow/red indicator.
-- Confirm ESP32 Local Serial shows "Disconnected" before physical UART wiring, "Connected" with sensor data after wiring.
+- Wire ESP32 NODE_03 to .54 RPi GPIO UART (pins 8/10: TXD/RXD ↔ ESP32 RXD/TXD, plus GND).
+- Verify ESP32 Local Serial card turns green with live data after ESP32 transmits NODE=NODE_03 packets.
+- Verify NODE local ESP32 serial/UART status on NODE_01 (.52) and NODE_02 (.53).
 - Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 currently unavailable.)
-- Confirm sensor cards populate from serial data for MAIN and NODE_01.
-- Confirm NODE_01 camera visible on MAIN dashboard.
-- Confirm LIVE mode working.
+- Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
 - Keep thermal camera path unchanged (hardware not installed yet).
 - Keep ESP32/LoRa path unchanged.
-- USB microphone/chainsaw detection remains later work.
 - NODE_02/NODE_03 ESP32 hardware remains pending assembly.

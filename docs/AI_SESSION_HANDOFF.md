@@ -3,14 +3,25 @@
 ## Handoff Summary
 The project has passed local software and firmware build validation. Codex is temporarily paused due to rate limits. Use VS Code + Roo Code + Kimi for small/medium tasks only.
 
-Latest implementation (2026-06-10):
-- NODE local ESP32 serial/UART status added to NODE dashboard.
-- Each NODE RPi now shows a green/yellow/red ESP32 Local Serial card on its dashboard.
-- app.py: DEFAULT_CONFIG adds esp32_serial_node_port (/dev/serial0); main() starts serial reader on GPIO UART for node roles; get_local_node_data() reads local serial cache; /api/status exposes local_serial fields.
-- NODE GUI: node_app.js renders ESP32 Local Serial card with port, status, last packet time, node IDs, error info.
-- NODE sensor readings prefer local serial data; no "Scan ESP32" required for local serial.
-- No ESP32 firmware changes. MAIN dashboard unchanged.
-- py_compile all modules PASS.
+Latest state (2026-06-12):
+- NODE03 (.54) UART READINESS VERIFIED: /dev/serial0 exists, serial reader connected, waiting for ESP32 data.
+- NODE GUI cleanup completed: no "Scan ESP32" wording, removed Recordings card, renamed "Browse RPi Folder".
+- Chainsaw detector UX improved: device selection, error visibility, Starting feedback, audio visualizer (RMS/peak/waveform).
+- Sample rate fix: detector now uses device default 44100 Hz instead of failing with 16000 Hz.
+- Live device enumeration: /api/devices uses arecord -l for real-time ALSA query, fixes stale PortAudio cache.
+- Audio validation pack created: test_audio_validation/ with positive_chainsaw/ (6 real recordings from Google Drive, converted to mono 44100Hz clips).
+- Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
+- MAIN .51 still unavailable; centralized serial validation pending.
+
+Recent commits (main branch):
+- 5e8eea4: test: add real chainsaw audio validation pack
+- 911266b: fix: remove recording card, clarify folder browsing
+- a1907e3: fix: use device default sample rate for chainsaw detector
+- d7b34ad: feat: add live audio visualizer to NODE GUI
+- 2ab870f: fix: use arecord -l for live ALSA device enumeration
+- c9c94c0: fix: chainsaw detector usability cleanup
+- de7f09a: fix: remove Scan ESP32 wording from NODE GUI
+- 3dbe424: feat: add node local esp32 serial status
 
 Latest hardware validation (2026-06-08 / 2026-06-09):
 - ESP32 MAIN + NODE_01 bench validation PASSED
@@ -29,7 +40,10 @@ Latest hardware validation (2026-06-08 / 2026-06-09):
 - MAIN ESP32 USB serial integration implemented; **verification pending because MAIN .51 is currently unavailable**.
 
 ## Next Task
-Validate NODE local ESP32 serial/UART status on NODE_03 (.54) — curl /api/status to confirm local_serial fields, then verify ESP32 Local Serial card on NODE dashboard. Also verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 is currently unavailable; resume when .51 is reachable.)
+- Wire ESP32 to NODE03 (.54) GPIO UART (pins 8/10: TXD/RXD) for live sensor data.
+- Verify NODE01 (.52) and NODE02 (.53) UART readiness.
+- Obtain negative real-world audio samples (motorcycle, rain, wind, forest, voice, generator).
+- Verify MAIN ESP32 USB serial integration on .51 (blocked: .51 unavailable).
 
 ## Required First Checks
 Before editing, inspect:
@@ -42,7 +56,7 @@ Before editing, inspect:
 - docs/workbook/ADM_FireNode_Implementation_Workbook.xlsx
 
 ## Current Instruction
-Main server is deployed successfully at `192.168.9.51`; dashboard/API are working in LIVE mode. ESP32 MAIN + NODE_01 bench is validated. NODE_02 (.53) and NODE_03 (.54) CSI camera setup and validation are completed; all three nodes display live CSI camera streams on their local dashboards. Do not modify firmware or architecture. The CSI camera code (`modules/csi_camera_stream.py` with Picamera2) is implemented and .51/.52/.53/.54 camera streams are working locally; NODE_01 camera is visible on the MAIN dashboard. MAIN ESP32 USB serial integration is implemented. Next step is verify on .51 that sensor cards populate from serial data for MAIN and NODE_01. Keep thermal camera path unchanged (hardware not installed yet). Keep ESP32/LoRa, and simulation fallback unchanged. USB microphone/chainsaw detection remains later work.
+NODE03 (.54) is fully operational: CSI camera works, UART reader connected at /dev/serial0, NODE GUI deployed with all latest features (audio visualizer, chainsaw UX, device selection, live device enumeration). Next physical step is wiring ESP32 to NODE03 GPIO UART. MAIN .51 is currently unavailable for centralized serial validation. Do not modify firmware or architecture. Keep thermal camera, ESP32/LoRa, and simulation fallback unchanged.
 
 ## Separate Node Dashboard + Local Serial (2026-06-09 / 2026-06-10)
 - Separate NODE GUI implemented: `templates/node_dashboard.html` + `static/node_app.js` for NODE RPis only.
