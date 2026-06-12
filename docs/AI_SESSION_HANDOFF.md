@@ -8,7 +8,7 @@ Latest state (2026-06-12):
 - NODE GUI cleanup completed: no "Scan ESP32" wording, removed Recordings card, renamed "Browse RPi Folder".
 - Chainsaw detector UX improved: device selection, error visibility, Starting feedback, audio visualizer (RMS/peak/waveform).
 - Sample rate fix: detector now uses device default 44100 Hz instead of failing with 16000 Hz.
-- Live device enumeration: /api/devices uses arecord -l for real-time ALSA query, fixes stale PortAudio cache.
+- Live device enumeration v2: /api/devices uses arecord -l for real-time ALSA query; non-zero exit (\"no soundcards found\") now authoritative — no stale PortAudio fallback. tests/test_api_devices.py added with 5 regression tests.
 - Audio validation pack created: test_audio_validation/ with positive_chainsaw/ (6 real recordings from Google Drive, converted to mono 44100Hz clips).
 - Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
 - MAIN .51 still unavailable; centralized serial validation pending.

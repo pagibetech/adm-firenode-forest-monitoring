@@ -1290,6 +1290,8 @@ def api_mode():
 @app.route("/api/devices")
 def api_devices():
     arecord_ok = False
+    arecord_missing = False
+    arecord_no_devices = False
     live_names = set()
     try:
         proc = subprocess.run(
@@ -1304,11 +1306,31 @@ def api_devices():
                     if bracket > 0:
                         name = line[bracket + 1:].split("]", 1)[0].strip().lower()
                         live_names.add(name)
+        else:
+            # arecord exited non-zero — check for known no-device indicators
+            combined = (proc.stdout + proc.stderr).lower()
+            no_dev_markers = [
+                "no soundcards found",
+                "no soundcard",
+                "no capture",
+                "no device",
+            ]
+            if any(m in combined for m in no_dev_markers):
+                arecord_no_devices = True
+    except FileNotFoundError:
+        arecord_missing = True
     except Exception:
         pass
 
-    if arecord_ok and not live_names:
-        return jsonify({"ok": True, "devices": []})
+    # If arecord reports zero or no capture devices, return empty list.
+    # This prevents the stale PortAudio fallback when hardware is truly absent.
+    if (arecord_ok and not live_names) or arecord_no_devices:
+        meta = {"enumeration_source": "alsa"}
+        if arecord_no_devices:
+            meta["alsa_status"] = "no_capture_devices"
+        else:
+            meta["alsa_status"] = "no_capture_lines"
+        return jsonify({"ok": True, "devices": [], "meta": meta})
 
     try:
         import sounddevice as sd

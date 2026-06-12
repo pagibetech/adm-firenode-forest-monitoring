@@ -65,10 +65,12 @@
 - Audio visualizer: RMS bar, Peak bar, waveform canvas, score + sample rate meta. Fast-poll 600ms.
 - Sample rate fix: detector uses device default_samplerate (44100 Hz) instead of hardcoded 16000 Hz.
 
-## Live Device Enumeration Fix — IMPLEMENTED (2026-06-10)
-- /api/devices replaced sounddevice.query_devices() (cached) with subprocess arecord -l (live ALSA query).
+## Live Device Enumeration Fix — IMPLEMENTED v2 (2026-06-12)
+- /api/devices replaced sounddevice.query_devices() (cached) with subprocess arecord -l (live ALSA query) in commit 2ab870f.
+- v2 fix: non-zero arecord -l exit (\"no soundcards found\", etc.) now treated as authoritative — no stale PortAudio fallback.
 - Cross-references with sounddevice by name for PortAudio-compatible device IDs.
-- Empty arecord output → returns empty device list (correct after USB mic unplugged).
+- Empty arecord output OR non-zero no-device exit → returns empty device list with meta.enumeration_source=\"alsa\".
+- Added tests/test_api_devices.py with 5 regression tests covering arecord-success, arecord-empty, arecord-nonzero-no-devices, stale-blocked, and arecord-missing fallback.
 
 ## Immediate Goal
 Verify that the MAIN RPi dashboard correctly displays sensor data from MAIN ESP32 USB serial for both local MAIN data and remote NODE_01 packets forwarded over LoRa, and that NODE_01 camera is visible on the MAIN dashboard in LIVE mode. This validation is pending because MAIN .51 is currently unavailable.

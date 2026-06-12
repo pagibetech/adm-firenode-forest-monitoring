@@ -101,11 +101,13 @@ Latest completed tasks (2026-06-10 / 2026-06-12):
 - detector._loop() now queries device default_samplerate and uses it when device selected.
 - Actual sample_rate exposed via /api/audio-monitor and /api/status chainsaw block.
 
-### Live device enumeration fix
+### Live device enumeration fix (v2 — 2026-06-12)
 - /api/devices was returning stale PortAudio-cached devices after USB mic unplugged.
-- Replaced with subprocess arecord -l for real-time ALSA hardware query.
+- Replaced with subprocess arecord -l for real-time ALSA hardware query (commit 2ab870f).
 - Cross-references arecord output with sounddevice list by name for PortAudio-compatible indices.
-- When arecord reports no capture hardware, returns empty device list.
+- v2 fix: non-zero arecord -l exit (\"no soundcards found\", etc.) now treated as authoritative \"no devices\" instead of falling through to stale PortAudio cache.
+- Added meta.enumeration_source and meta.alsa_status fields for diagnostics.
+- Added tests/tests_api_devices.py with 5 regression tests for the enumeration logic.
 
 ### Real audio validation pack
 - test_audio_validation/ created with positive_chainsaw/ (6 real Google Drive recordings converted to mono 44100Hz 16-bit clips), negative_non_chainsaw/, borderline/.
