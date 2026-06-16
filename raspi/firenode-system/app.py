@@ -1289,12 +1289,16 @@ def api_devices():
     arecord_ok = False
     arecord_missing = False
     arecord_no_devices = False
+    arecord_returncode = None
+    arecord_stderr_snippet = ""
     live_names = set()
     try:
         proc = subprocess.run(
             ["arecord", "-l"],
             capture_output=True, text=True, timeout=3,
         )
+        arecord_returncode = proc.returncode
+        arecord_stderr_snippet = (proc.stderr or "")[:200]
         if proc.returncode == 0:
             arecord_ok = True
             for line in proc.stdout.splitlines():
@@ -1303,6 +1307,12 @@ def api_devices():
                     if bracket > 0:
                         name = line[bracket + 1:].split("]", 1)[0].strip().lower()
                         live_names.add(name)
+            # arecord exited 0 but found no cards — also check stderr
+            if not live_names:
+                combined = (proc.stdout + proc.stderr).lower()
+                exit0_markers = ["no audio", "no device", "cannot access", "cannot open"]
+                if any(m in combined for m in exit0_markers):
+                    arecord_no_devices = True
         else:
             # arecord exited non-zero — check for known no-device indicators
             combined = (proc.stdout + proc.stderr).lower()
@@ -1311,6 +1321,10 @@ def api_devices():
                 "no soundcard",
                 "no capture",
                 "no device",
+                "cannot access",
+                "cannot open audio device",
+                "no audio devices",
+                "device list error",
             ]
             if any(m in combined for m in no_dev_markers):
                 arecord_no_devices = True
@@ -1327,6 +1341,8 @@ def api_devices():
             meta["alsa_status"] = "no_capture_devices"
         else:
             meta["alsa_status"] = "no_capture_lines"
+        meta["arecord_returncode"] = arecord_returncode
+        meta["arecord_stderr"] = arecord_stderr_snippet
         return jsonify({"ok": True, "devices": [], "meta": meta})
 
     try:
@@ -1347,9 +1363,9 @@ def api_devices():
                 "max_input_channels": int(dev.get("max_input_channels", 0)),
                 "default_samplerate": float(dev.get("default_samplerate", 0)),
             })
-        return jsonify({"ok": True, "devices": data})
+        return jsonify({"ok": True, "devices": data, "meta": {"enumeration_source": "alsa+portaudio", "arecord_returncode": arecord_returncode}})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e), "devices": []})
+        return jsonify({"ok": False, "error": str(e), "devices": [], "meta": {"arecord_returncode": arecord_returncode, "error_detail": str(e)}})
 
 
 @app.route("/api/audio-monitor")

@@ -87,6 +87,44 @@ class ApiDevicesTests(unittest.TestCase):
         self.assertEqual(len(data["devices"]), 0,
                          "stale PortAudio devices must not appear when arecord reports no hardware")
 
+    def test_arecord_exit0_no_audio_devices_found_stderr(self):
+        """arecord exit 0 with 'no audio devices found' in stderr returns empty (exit0 edge case)."""
+        proc = self._make_proc(0, "", "no audio devices found\n")
+        with patch("subprocess.run", return_value=proc):
+            with patch("sounddevice.query_devices", side_effect=RuntimeError("should not be called")):
+                resp = self.client.get("/api/devices")
+        data = json.loads(resp.data)
+        self.assertTrue(data["ok"])
+        self.assertEqual(len(data["devices"]), 0)
+        self.assertEqual(data["meta"]["alsa_status"], "no_capture_devices")
+        self.assertEqual(data["meta"]["arecord_returncode"], 0)
+
+    def test_arecord_exit1_cannot_access_returns_empty(self):
+        """arecord exit 1 with 'cannot access' returns empty and blocks stale fallback."""
+        proc = self._make_proc(1, "", "cannot access audio device\n")
+        stale_devices = [{"name": "USB PnP Sound Device", "max_input_channels": 1, "default_samplerate": 44100.0}]
+        with patch("subprocess.run", return_value=proc):
+            with patch("sounddevice.query_devices", return_value=stale_devices):
+                resp = self.client.get("/api/devices")
+        data = json.loads(resp.data)
+        self.assertTrue(data["ok"])
+        self.assertEqual(len(data["devices"]), 0,
+                         "stale PortAudio must be blocked when arecord reports no access")
+        self.assertEqual(data["meta"]["arecord_returncode"], 1)
+
+    def test_arecord_meta_includes_diagnostic_fields(self):
+        """All response variants include arecord_returncode and enumeration_source in meta."""
+        proc = self._make_proc(0, "card 0: Foo [Some Device], device 0: USB Audio [USB Audio]\n")
+        mock_devices = [{"name": "Some Device", "max_input_channels": 1, "default_samplerate": 48000.0}]
+        with patch("subprocess.run", return_value=proc):
+            with patch("sounddevice.query_devices", return_value=mock_devices):
+                resp = self.client.get("/api/devices")
+        data = json.loads(resp.data)
+        self.assertTrue(data["ok"])
+        self.assertIn("meta", data)
+        self.assertIn("arecord_returncode", data["meta"])
+        self.assertIn("enumeration_source", data["meta"])
+
     def test_arecord_missing_falls_back_to_sounddevice(self):
         """When arecord is not installed, fall back to sounddevice."""
         mock_devices = [
