@@ -105,9 +105,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "esp32_serial_port": "/dev/ttyUSB0",
     "esp32_serial_baud": 115200,
 
-    # ESP32 UART serial port for NODE RPis (GPIO UART: /dev/serial0)
-    "esp32_serial_node_port": "/dev/serial0",
-
     # Local cameras. camera_type = "csi" uses Picamera2; "usb" uses OpenCV V4L2 fallback.
     "camera_enabled": True,
     "camera_type": "csi",
@@ -985,7 +982,7 @@ def api_status():
     local_serial = {
         "enabled": bool(cfg.get("esp32_serial_enabled")),
         "connected": serial_status.get("serial_connected", False) if serial_status else False,
-        "port": str(cfg.get("esp32_serial_node_port" if current_role() == "node" else "esp32_serial_port", "")),
+        "port": str(cfg.get("esp32_serial_port", "/dev/ttyUSB0")),
         "error": serial_status.get("serial_error") if serial_status else None,
         "last_packet_time": serial_status.get("last_packet_time") if serial_status else None,
         "packets_by_node": serial_status.get("packets_by_node", {}) if serial_status else {},
@@ -1014,7 +1011,7 @@ def api_config():
         "camera_type", "camera_backend", "camera_fourcc",
         "detection_mode", "audio_browse_start_dir", "log_file",
         "thermal_i2c_address", "wifi_ssid", "wifi_password", "wifi_country", "wifi_interface",
-        "esp32_serial_port", "esp32_serial_node_port",
+        "esp32_serial_port",
     ]
     allowed_int = [
         "port", "esp32_scan_workers", "camera_device_index", "camera_width", "camera_height", "camera_fps",
@@ -1497,11 +1494,7 @@ def main():
 
     global esp32_serial_reader
     if cfg.get("esp32_serial_enabled"):
-        role = current_role()
-        if role == "node":
-            port = str(cfg.get("esp32_serial_node_port", "/dev/serial0"))
-        else:
-            port = str(cfg.get("esp32_serial_port", "/dev/ttyUSB0"))
+        port = str(cfg.get("esp32_serial_port", "/dev/ttyUSB0"))
         esp32_serial_reader = ESP32SerialReader(
             port=port,
             baud=int(cfg.get("esp32_serial_baud", 115200)),

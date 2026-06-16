@@ -4,7 +4,7 @@
 The project has passed local software and firmware build validation. Codex is temporarily paused due to rate limits. Use VS Code + Roo Code + Kimi for small/medium tasks only.
 
 Latest state (2026-06-12):
-- NODE03 (.54) UART READINESS VERIFIED: /dev/serial0 exists, serial reader connected, waiting for ESP32 data.
+- NODE03 (.54) USB SERIAL READINESS VERIFIED: /dev/ttyUSB0 exists, serial reader connected, waiting for ESP32 data.
 - NODE GUI cleanup completed: no "Scan ESP32" wording, removed Recordings card, renamed "Browse RPi Folder".
 - Chainsaw detector UX improved: device selection, error visibility, Starting feedback, audio visualizer (RMS/peak/waveform).
 - Sample rate fix: detector now uses device default 44100 Hz instead of failing with 16000 Hz.
@@ -40,7 +40,7 @@ Latest hardware validation (2026-06-08 / 2026-06-09):
 - MAIN ESP32 USB serial integration implemented; **verification pending because MAIN .51 is currently unavailable**.
 
 ## Next Task
-- Wire ESP32 to NODE03 (.54) GPIO UART (pins 8/10: TXD/RXD) for live sensor data.
+- Wire ESP32 to NODE03 (.54) USB serial (pins 8/10: TXD/RXD) for live sensor data.
 - Verify NODE01 (.52) and NODE02 (.53) UART readiness.
 - Obtain negative real-world audio samples (motorcycle, rain, wind, forest, voice, generator).
 - Verify MAIN ESP32 USB serial integration on .51 (blocked: .51 unavailable).
@@ -56,7 +56,7 @@ Before editing, inspect:
 - docs/workbook/ADM_FireNode_Implementation_Workbook.xlsx
 
 ## Current Instruction
-NODE03 (.54) is fully operational: CSI camera works, UART reader connected at /dev/serial0, NODE GUI deployed with all latest features (audio visualizer, chainsaw UX, device selection, live device enumeration). Next physical step is wiring ESP32 to NODE03 GPIO UART. MAIN .51 is currently unavailable for centralized serial validation. Do not modify firmware or architecture. Keep thermal camera, ESP32/LoRa, and simulation fallback unchanged.
+NODE03 (.54) is fully operational: CSI camera works, UART reader connected at /dev/ttyUSB0, NODE GUI deployed with all latest features (audio visualizer, chainsaw UX, device selection, live device enumeration). Next physical step is wiring ESP32 to NODE03 USB serial. MAIN .51 is currently unavailable for centralized serial validation. Do not modify firmware or architecture. Keep thermal camera, ESP32/LoRa, and simulation fallback unchanged.
 
 ## Separate Node Dashboard + Local Serial (2026-06-09 / 2026-06-10)
 - Separate NODE GUI implemented: `templates/node_dashboard.html` + `static/node_app.js` for NODE RPis only.
@@ -66,7 +66,7 @@ NODE03 (.54) is fully operational: CSI camera works, UART reader connected at /d
 - NODE simulation mode disabled: `operation_mode()` forced to `"live"` for node roles.
 - Chainsaw controls moved from Tools tab into NODE dashboard page.
 - `app.py` index() route: `current_role() == "node"` → `node_dashboard.html`; `"server"` → `dashboard.html`.
-- Config key `esp32_serial_node_port` (/dev/serial0) added for node GPIO UART serial.
+- Config key `esp32_serial_port` (/dev/ttyUSB0) added for node USB serial serial.
 - `/api/status` exposes `local_serial` object with enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
 - No ESP32/LoRa/thermal architecture changes.
 - `py_compile` all modules PASS.
@@ -78,7 +78,7 @@ NODE03 (.54) is fully operational: CSI camera works, UART reader connected at /d
 - `requirements.txt` notes added for picamera2 via apt.
 - `config.json` updated with new defaults.
 - Dashboard UI labels updated to generic "Camera".
-- **2026-06-10**: NODE local ESP32 serial/UART status added to NODE dashboard. app.py starts serial reader on /dev/serial0 for node roles. NODE sensor data sources from local serial cache. /api/status exposes local_serial fields.
+- **2026-06-10**: NODE local ESP32 serial/UART status added to NODE dashboard. app.py starts serial reader on /dev/ttyUSB0 for node roles. NODE sensor data sources from local serial cache. /api/status exposes local_serial fields.
 - `py_compile` validation passed for all modified Python files.
 
 ## Latest Implementation Added (2026-06-02 / 2026-06-08 / 2026-06-10)

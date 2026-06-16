@@ -52,7 +52,7 @@ function updateHeader(status) {
     }
     setClass($('esp32Badge'), 'pill', 'green');
   } else if (localSerial.enabled) {
-    espText = 'ESP32: Waiting for UART data';
+    espText = 'ESP32: Waiting for USB data';
     setClass($('esp32Badge'), 'pill', 'warn');
   } else {
     espText = 'ESP32: ' + (local.esp32_error || 'not connected');
@@ -127,9 +127,9 @@ function updateLocalSerial(localSerial) {
     $('serialStatus').textContent = 'Error';
     $('serialLastPacket').textContent = '--';
   } else {
-    $('serialConnBadge').textContent = 'Waiting for UART data';
+    $('serialConnBadge').textContent = 'Waiting for USB data';
     setClass($('serialConnBadge'), 'badge', 'warn');
-    $('serialStatus').textContent = 'Waiting for UART data';
+    $('serialStatus').textContent = 'Waiting for USB data';
     $('serialLastPacket').textContent = '--';
   }
 

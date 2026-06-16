@@ -5,8 +5,8 @@ Task: Integrate ESP32 serial data into RPi dashboards (MAIN + NODE).
 Status: **IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
 
 ## 2026-06-10 Update: NODE Local ESP32 Serial/UART Status
-- NODE RPis now start the serial reader on `/dev/serial0` (GPIO UART) when role is "node".
-- `config.json` key added: `esp32_serial_node_port` (default: "/dev/serial0").
+- NODE RPis now start the serial reader on `/dev/ttyUSB0` (GPIO UART) when role is "node".
+- `config.json` key added: `esp32_serial_port` (default: "/dev/ttyUSB0").
 - `get_local_node_data()` for node roles: first checks local serial cache for non-MAIN node IDs; falls back to HTTP ESP32 if no serial data.
 - `/api/status` now exposes `local_serial` object with: enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
 - NODE dashboard (node_dashboard.html + node_app.js): ESP32 Local Serial card with green/yellow/red indicator.
@@ -85,7 +85,7 @@ Status: **IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
 - **NODE=NODE_01** → Remote slot 1 (`FireNode-192-168-9-52`) sensor card on MAIN dashboard.
 - **NODE=NODE_02** → Remote slot 2 (`FireNode-192-168-9-53`) sensor card — pending hardware build.
 - **NODE=NODE_03** → Remote slot 3 (`FireNode-192-168-9-54`) sensor card — pending hardware build.
-- **NODE local serial** (.52/.53/.54): Each NODE RPi shows its paired ESP32 data from local UART (/dev/serial0) on the NODE dashboard.
+- **NODE local serial** (.52/.53/.54): Each NODE RPi shows its paired ESP32 data from local UART (/dev/ttyUSB0) on the NODE dashboard.
 - Nodes without serial data remain placeholders (offline) unless pulled via HTTP.
 - HTTP fallback for ESP32 data is preserved when serial is disabled or no data exists.
 
@@ -97,8 +97,8 @@ Status: **IMPLEMENTED / NODE LOCAL SERIAL ADDED / VERIFICATION PENDING**
 
 ## Pending Verification
 - [ ] Confirm `/dev/ttyUSB0` exists and minicom shows readable output on .51 (MAIN).
-- [x] Confirm `/dev/serial0` exists on .54 (NODE03 — VERIFIED 2026-06-12).
-- [ ] Confirm `/dev/serial0` exists on .52/.53 (NODE01/NODE02 — not yet checked).
+- [x] Confirm `/dev/ttyUSB0` exists on .54 (NODE03 — VERIFIED 2026-06-12).
+- [ ] Confirm `/dev/ttyUSB0` exists on .52/.53 (NODE01/NODE02 — not yet checked).
 - [x] Confirm `/api/status` shows `local_serial.connected: true` on .54 (VERIFIED).
 - [x] Confirm NODE dashboard ESP32 Local Serial card works on .54 (VERIFIED — yellow "Waiting for UART data").
 - [ ] Confirm NODE sensor readings populate from local serial cache (pending ESP32 UART wiring).

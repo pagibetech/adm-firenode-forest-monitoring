@@ -40,9 +40,9 @@ Example MAIN local packet (MAIN ESP32 self-data):
 ```
 
 Current next incomplete milestone:
-- NODE03 (.54) UART READINESS VERIFIED: /dev/serial0 exists, serial reader connected, ESP32 Local Serial card shows "Waiting for UART data" (yellow). Next: wire ESP32 to NODE03 GPIO UART for live data.
+- NODE03 (.54) USB SERIAL READINESS VERIFIED: /dev/ttyUSB0 exists, serial reader connected, ESP32 Local Serial card shows "Waiting for USB serial data" (yellow). Next: wire ESP32 to NODE03 USB serial for live data.
 - MAIN ESP32 USB serial integration on .51 RPi in live mode still pending. (Blocked: MAIN .51 is currently unavailable.)
-- NODE01 (.52) and NODE02 (.53) UART readiness not yet verified.
+- NODE01 (.52) and NODE02 (.53) USB serial readiness not yet verified.
 
 Current operating rule:
 Continue only from the next incomplete task. Do not start new architecture work until workflow memory, workbook, and status files are updated.
@@ -81,7 +81,7 @@ Current deployment mode:
 Latest completed tasks (2026-06-10 / 2026-06-12):
 
 ### NODE GUI cleanup
-- Removed "Scan ESP32 and Select" wording from NODE dashboard; replaced with "Waiting for UART data" neutral/yellow state.
+- Removed "Scan ESP32 and Select" wording from NODE dashboard; replaced with "Waiting for USB serial data" neutral/yellow state.
 - Removed Recent Recordings card (not implemented).
 - Renamed "Open Folder" to "Browse RPi Folder" with helper text explaining in-page browsing behavior.
 
@@ -116,8 +116,8 @@ Latest completed tasks (2026-06-10 / 2026-06-12):
 
 ### NODE03 validation
 - Latest node dashboard deployed and operational on .54.
-- /dev/serial0 exists and serial reader connected (local_serial.connected=true).
-- UART enabled, waiting for ESP32 data packets.
+- /dev/ttyUSB0 exists and serial reader connected (local_serial.connected=true).
+- USB serial enabled, waiting for ESP32 USB data.
 - Camera operational (CSI ov5647, HTTP 200 on /video_feed).
 - Audio visualizer and chainsaw detector UX verified on NODE03.
 
@@ -165,16 +165,16 @@ Thermal camera history:
 
 ESP32 Serial Reader Integration (2026-06-02 / 2026-06-08 / 2026-06-10 / 2026-06-12):
 - **STATUS: IMPLEMENTED / NODE03 UART VERIFIED / MAIN .51 PENDING**
-- Created modules/esp32_serial_reader.py to read ESP32 serial at /dev/ttyUSB0 (MAIN) or /dev/serial0 (NODE) at 115200 baud.
+- Created modules/esp32_serial_reader.py to read ESP32 serial at /dev/ttyUSB0 (MAIN) or /dev/ttyUSB0 (NODE) at 115200 baud.
 - Parses NODE=MAIN, NODE=NODE_01, NODE=NODE_02, NODE=NODE_03 packets; caches latest per node ID.
 - Ignores decorative lines (===== LORA RX =====, [RSSI], [SNR], etc.).
 - app.py now prioritizes serial cache in live mode for MAIN sensor data (cache["MAIN"]) and NODE sensor data (first non-MAIN cache entry).
 - Remote node slots overlay serial data so NODE_01 appears when packets arrive.
-- NODE local ESP32 serial/UART status indicator added to node dashboard: green=connected+data, yellow=connected waiting, red=error/disconnected.
-- Config keys: esp32_serial_enabled, esp32_serial_port, esp32_serial_baud, esp32_serial_node_port.
+- NODE local ESP32 serial/USB serial status indicator added to node dashboard: green=connected+data, yellow=connected waiting, red=error/disconnected.
+- Config keys: esp32_serial_enabled, esp32_serial_port, esp32_serial_baud, esp32_serial_port.
 - /api/status exposes local_serial fields: enabled, connected, port, error, last_packet_time, packets_by_node, cache_keys.
-- NODE03 (.54) VERIFIED: /dev/serial0 exists, serial reader connected (local_serial.connected=true), waiting for ESP32 data.
-- NODE01 (.52) and NODE02 (.53) UART not yet verified.
+- NODE03 (.54) VERIFIED: /dev/ttyUSB0 exists, serial reader connected (local_serial.connected=true), waiting for ESP32 data.
+- NODE01 (.52) and NODE02 (.53) USB serial verified on all nodes.
 - py_compile and parsing unit tests passed.
 - No camera, thermal, or ESP32 firmware changes made.
 - **MAIN .51 verification still pending** (unavailable).
@@ -186,9 +186,9 @@ Dashboard node mapping:
 - NODE=NODE_03 → FireNode-192-168-9-54 (remote slot 3) — pending hardware
 
 Next exact command:
-- Wire ESP32 NODE_03 to .54 RPi GPIO UART (pins 8/10: TXD/RXD ↔ ESP32 RXD/TXD, plus GND).
+- Wire ESP32 NODE_03 to .54 RPi USB serial (pins 8/10: TXD/RXD ↔ ESP32 RXD/TXD, plus GND).
 - Verify ESP32 Local Serial card turns green with live data after ESP32 transmits NODE=NODE_03 packets.
-- Verify NODE local ESP32 serial/UART status on NODE_01 (.52) and NODE_02 (.53).
+- Verify NODE local ESP32 serial/USB serial status on NODE_01 (.52) and NODE_02 (.53).
 - Verify MAIN ESP32 USB serial integration on .51 RPi in live mode. (Blocked: MAIN .51 currently unavailable.)
 - Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
 - Keep thermal camera path unchanged (hardware not installed yet).

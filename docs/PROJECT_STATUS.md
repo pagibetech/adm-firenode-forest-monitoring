@@ -51,8 +51,8 @@
 - Negative real-world audio samples still needed (motorcycle, rain, wind, forest, voice, generator).
 
 ## NODE03 UART Readiness — VERIFIED (2026-06-12)
-- /dev/serial0 exists on NODE03.
-- Serial reader started and connected (local_serial.connected=true, local_serial.port=/dev/serial0).
+- /dev/ttyUSB0 exists on NODE03.
+- Serial reader started and connected (local_serial.connected=true, local_serial.port=/dev/ttyUSB0).
 - ESP32 Local Serial card shows "Waiting for UART data" (yellow) — correct pre-wiring state.
 - API: /api/status returns local_serial with enabled=true, connected=true, error=null.
 - UART hardware enabled on RPi (enable_uart=1 in /boot/config.txt).
@@ -161,8 +161,8 @@ Deployment role labels:
 ## Separate Node Dashboard + Local Serial (2026-06-09 / 2026-06-10)
 - Separate NODE GUI implemented for NODE RPis only (.52/.53/.54).
 - NODE local ESP32 serial/UART status indicator added (2026-06-10): green/yellow/red ESP32 Local Serial card on node dashboard.
-- app.py updated: esp32_serial_node_port config (/dev/serial0), node serial reader startup, local serial cache priority, /api/status local_serial fields.
-- config.json updated with esp32_serial_node_port default.
+- app.py updated: esp32_serial_port config (/dev/ttyUSB0), node serial reader startup, local serial cache priority, /api/status local_serial fields.
+- config.json updated with esp32_serial_port default.
 - No ESP32 firmware changes. MAIN dashboard preserved.
 - New files: `templates/node_dashboard.html`, `static/node_app.js`.
 - Shared: `static/style.css`.

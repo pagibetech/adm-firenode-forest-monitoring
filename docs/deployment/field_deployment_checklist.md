@@ -136,13 +136,12 @@ Expected lines:
 
 ## 8. NODE UART Verification (added 2026-06-12)
 
-- [x] NODE03 (.54): Confirm `/dev/serial0` exists.
+- [x] NODE03 (.54): Confirm `/dev/ttyUSB0` exists.
 - [x] NODE03 (.54): Confirm UART enabled (`enable_uart=1` in /boot/config.txt).
 - [x] NODE03 (.54): Confirm `curl /api/status` shows `local_serial.connected: true`.
 - [x] NODE03 (.54): Confirm NODE GUI shows ESP32 Local Serial card with yellow "Waiting for UART data".
-- [ ] NODE01 (.52): Confirm `/dev/serial0` exists and UART enabled.
-- [ ] NODE02 (.53): Confirm `/dev/serial0` exists and UART enabled.
-- [ ] Wire ESP32 to NODE RPi GPIO UART (pins 8/10: GPIO14 TXD, GPIO15 RXD, pin 6 GND).
+- [ ] NODE01 (.52): Confirm `/dev/ttyUSB0` exists and UART enabled.
+- [ ] NODE02 (.53): Confirm `/dev/ttyUSB0` exists and UART enabled.
 
 - Confirm smoke alert state from MQ2 or simulation.
 - Confirm chainsaw alert state from microphone or test audio.

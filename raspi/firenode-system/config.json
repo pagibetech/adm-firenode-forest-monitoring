@@ -69,5 +69,4 @@
   "esp32_serial_enabled": true,
   "esp32_serial_port": "/dev/ttyUSB0",
   "esp32_serial_baud": 115200,
-  "esp32_serial_node_port": "/dev/serial0"
 }
