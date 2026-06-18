@@ -59,6 +59,8 @@ class ESP32SerialReader:
         self.serial_error: Optional[str] = None
         self.last_packet_time: Optional[str] = None
         self.packets_by_node: Dict[str, int] = {}
+        self._last_rssi: Optional[float] = None
+        self._last_snr: Optional[float] = None
 
     def start(self) -> None:
         if not self.enabled:
@@ -76,7 +78,7 @@ class ESP32SerialReader:
             self._thread = None
 
     @staticmethod
-    def parse_line(line: str) -> Optional[Dict[str, Any]]:
+    def parse_line(line: str, rssi: Optional[float] = None, snr: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """Parse a single serial line and return a dict if it contains sensor data."""
         if "NODE=" not in line:
             return None
@@ -103,6 +105,14 @@ class ESP32SerialReader:
                 data["mq"] = _safe_int(value)
             elif key == "BAT":
                 data["bat"] = _safe_int(value)
+            elif key == "RSSI":
+                data["rssi_dbm"] = _safe_float(value)
+            elif key == "SNR":
+                data["snr_db"] = _safe_float(value)
+        if rssi is not None:
+            data["rssi_dbm"] = rssi
+        if snr is not None:
+            data["snr_db"] = snr
         if not data.get("node_id"):
             return None
         return data
@@ -123,7 +133,9 @@ class ESP32SerialReader:
                         line = raw.decode("utf-8", errors="replace").strip()
                         if not line:
                             continue
-                        parsed = self.parse_line(line)
+                        import re
+                        # Try to parse this line as a sensor data packet
+                        parsed = self.parse_line(line, self._last_rssi, self._last_snr)
                         if parsed:
                             node_id = str(parsed.get("node_id") or "unknown")
                             self.last_packet_time = now_text()
@@ -132,6 +144,29 @@ class ESP32SerialReader:
                                 self.packets_by_node[node_id] = (
                                     self.packets_by_node.get(node_id, 0) + 1
                                 )
+                                # Store the last cached node_id for RSSI/SNR association
+                                self._last_cached_node_id = node_id
+                        # Track RSSI/SNR and apply to the last cached packet
+                        rssi_m = re.search(r'\[RSSI\]\s*(-?[\d.]+)', line)
+                        if rssi_m:
+                            rssi_val = float(rssi_m.group(1))
+                            self._last_rssi = rssi_val
+                            # Apply to last cached node
+                            if hasattr(self, '_last_cached_node_id') and self._last_cached_node_id:
+                                with self._lock:
+                                    cached = self._cache.get(self._last_cached_node_id)
+                                    if cached:
+                                        cached['rssi_dbm'] = rssi_val
+                        snr_m = re.search(r'\[SNR\]\s*(-?[\d.]+)', line)
+                        if snr_m:
+                            snr_val = float(snr_m.group(1))
+                            self._last_snr = snr_val
+                            # Apply to last cached node
+                            if hasattr(self, '_last_cached_node_id') and self._last_cached_node_id:
+                                with self._lock:
+                                    cached = self._cache.get(self._last_cached_node_id)
+                                    if cached:
+                                        cached['snr_db'] = snr_val
             except Exception as exc:
                 self.serial_connected = False
                 self.serial_error = str(exc)
@@ -194,5 +229,7 @@ def sensor_summary_from_serial(serial_data: Dict[str, Any]) -> Dict[str, Any]:
         "lora_ready": True,
         "last_lora_send_ok": True,
         "last_lora_seq": esp.get("seq"),
+        "lora_rssi_dbm": serial_data.get("rssi_dbm"),
+        "lora_snr_db": serial_data.get("snr_db"),
         "battery_v": (serial_data.get("bat") / 1000.0) if isinstance(serial_data.get("bat"), int) else None,
     }

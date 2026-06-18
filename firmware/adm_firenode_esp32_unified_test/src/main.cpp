@@ -131,10 +131,10 @@ void receiveLoRaPacket() {
   Serial.println();
   Serial.println("========== LORA RX ==========");
   Serial.print("[RECEIVED] ");
-  Serial.println(incoming);
-  Serial.print("[RSSI] ");
-  Serial.println(LoRa.packetRssi());
-  Serial.print("[SNR] ");
+  Serial.print(incoming);
+  Serial.print(",RSSI=");
+  Serial.print(LoRa.packetRssi());
+  Serial.print(",SNR=");
   Serial.println(LoRa.packetSnr());
   Serial.println("=============================");
 }

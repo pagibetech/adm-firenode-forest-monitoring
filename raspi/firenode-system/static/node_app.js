@@ -5,7 +5,7 @@ let refreshTimer = null;
 function $(id) { return document.getElementById(id); }
 
 function safe(v, fallback) {
-  if (fallback === undefined) fallback = '--';
+  if (fallback === undefined) fallback = 'N/A';
   return (v === undefined || v === null || v === '') ? fallback : v;
 }
 
@@ -173,10 +173,7 @@ function renderLocalSensor(local, localSerial) {
   lines.push({ label: 'Humidity', value: safe(s.humidity) + ' %' });
   lines.push({ label: 'Smoke', value: s.smoke_detected ? 'DETECTED' : 'Normal', alert: s.smoke_detected });
   lines.push({ label: 'PIR Human', value: s.human_detected ? 'Detected' : 'No motion', alert: s.human_detected });
-  lines.push({ label: 'LoRa Seq', value: safe(s.last_lora_seq) });
-  lines.push({ label: 'RSSI / SNR', value: safe(s.lora_rssi_dbm) + ' dBm / ' + safe(s.lora_snr_db) + ' dB' });
   lines.push({ label: 'Battery', value: safe(s.battery_v) + ' V' });
-  lines.push({ label: 'PDR Estimate', value: safe(s.lora_pdr_estimate_pct) + ' %' });
 
   var html = '';
   lines.forEach(function(l) {
