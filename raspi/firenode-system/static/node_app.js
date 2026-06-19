@@ -26,6 +26,7 @@ async function api(url, options) {
 
 function updateHeader(status) {
   currentConfig = status.config || {};
+  var el = $('smokeThresholdInput'); if (el) { el.value = currentConfig.smoke_threshold ?? 500; }
   currentLocal = status.local || {};
   var local = currentLocal;
   var network = status.network || {};
@@ -368,6 +369,18 @@ async function startDetector() {
   }
   await refreshStatus();
   setTimeout(refreshStatus, 1500);
+}
+
+async function saveThreshold() {
+  const payload = {
+    smoke_threshold: Number($('smokeThresholdInput').value || 500)
+  };
+  try {
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    alert('Threshold saved.');
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+  }
 }
 
 async function stopDetector() {

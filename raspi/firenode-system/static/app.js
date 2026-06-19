@@ -241,8 +241,7 @@ function renderSensorCards(nodes) {
       <div class="sensor-line"><span>PIR Human</span><strong class="${s.human_detected ? 'bad-text' : 'ok-text'}">${s.human_detected ? 'Detected' : 'No motion'}</strong></div>
 
       <div class="sensor-line"><span>Chainsaw</span><strong class="${c.confirmed_detection ? 'bad-text' : 'ok-text'}">${c.confirmed_detection ? 'DETECTED' : (c.running ? 'Monitoring' : 'Stopped')}</strong></div>`;
-    card.innerHTML += `<div class="sensor-line"><span>LoRa Seq/RSSI/SNR</span><strong>${safe(s.last_lora_seq)} / ${safe(s.lora_rssi_dbm)} dBm / ${safe(s.lora_snr_db)} dB</strong></div>
-      <div class="sensor-line"><span>Battery/PDR</span><strong>${safe(s.battery_v)} V</strong></div>`;
+    card.innerHTML += `<div class="sensor-line"><span>Battery</span><strong>${safe(s.battery_v)} V</strong></div>`;
     box.appendChild(card);
   });
 }
@@ -333,7 +332,7 @@ function renderSelectedNode() {
       <div class="sensor-line"><span>Thermal Reason</span><strong>${safe(td.reason)}</strong></div>
       <div class="sensor-line"><span>Chainsaw</span><strong class="${c.confirmed_detection ? 'bad-text' : 'ok-text'}">${c.confirmed_detection ? 'Detected' : (c.running ? 'Monitoring' : 'Stopped')}</strong></div>
       <div class="sensor-line"><span>LoRa Packet</span><strong>Seq ${safe(s.last_lora_seq)} | RSSI ${safe(s.lora_rssi_dbm)} dBm</strong></div>
-      <div class="sensor-line"><span>LoRa SNR/PDR</span><strong>${safe(s.lora_snr_db)} dB</strong></div>
+      <div class="sensor-line"><span>Battery</span><strong>${safe(s.battery_v)} V</strong></div>
       <div class="sensor-line"><span>Battery</span><strong>${safe(s.battery_v)} V</strong></div>
       <h3>Raw Node JSON</h3>
       <pre class="json small-json">${JSON.stringify(n, null, 2)}</pre>
@@ -461,6 +460,7 @@ async function saveSettings() {
     wifi_ssid: $('wifiSsidInput').value.trim(),
     wifi_password: $('wifiPasswordInput').value,
     wifi_country: $('wifiCountryInput').value.trim() || 'PH',
+    smoke_threshold: Number($('smokeThresholdInput').value || 500),
     wifi_interface: $('wifiInterfaceInput').value.trim() || 'wlan0'
   };
   try {

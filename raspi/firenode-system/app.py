@@ -728,10 +728,46 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
         if cfg.get("esp32_serial_enabled") and esp32_serial_reader is not None:
             cache = esp32_serial_reader.get_cache()
             if current_role() == "node":
+                # Try to find the cache entry matching this node's own ID
+                # Use hostname suffix (e.g., firenode-node01 -> NODE_01)
+                import socket
+                host = socket.gethostname()
+                own_id = None
+                for part in host.split("-"):
+                    if part.startswith("node"):
+                        own_id = part.upper().replace("NODE", "NODE_")
+                # Also try cache keys that contain the node numeric suffix
+                best = None
                 for node_id, data in cache.items():
-                    if node_id != "MAIN":
+                    if node_id == "MAIN":
+                        continue
+                    # Priority 1: own_id match with temp
+                    if own_id and node_id == own_id and data.get("temperature") is not None:
                         serial_data = data
                         break
+                if not serial_data:
+                    for node_id, data in cache.items():
+                        if node_id == "MAIN":
+                            continue
+                        has_bat = data.get("bat") is not None
+                        has_temp = data.get("temperature") is not None
+                        if has_temp and has_bat:
+                            serial_data = data
+                            break
+                if not serial_data:
+                    for node_id, data in cache.items():
+                        if node_id == "MAIN":
+                            continue
+                        if data.get("temperature") is not None:
+                            if best is None or (data.get("bat") is not None and best.get("bat") is None):
+                                best = data
+                if best is not None:
+                    serial_data = best
+                if not serial_data:
+                    for node_id, data in cache.items():
+                        if node_id != "MAIN":
+                            serial_data = data
+                            break
                 if not serial_data and cache:
                     serial_data = next(iter(cache.values()))
             else:
@@ -840,7 +876,7 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
             "lora_rssi_dbm": lora_packet.get("rssi_dbm"),
             "lora_snr_db": lora_packet.get("snr_db"),
             "lora_pdr_estimate_pct": lora_packet.get("pdr_estimate_pct"),
-            "battery_v": (lora_packet.get("payload") or {}).get("battery_v"),
+            "battery_v": ((esp32_data.get("battery_raw") or 0) / 1000.0) if esp32_data.get("battery_raw") else None,
         },
         "chainsaw": {
             "running": chainsaw_status.get("running"),
