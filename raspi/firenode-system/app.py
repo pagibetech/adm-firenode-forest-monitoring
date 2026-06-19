@@ -774,6 +774,10 @@ def get_local_node_data(include_alert_update: bool = True) -> Dict[str, Any]:
                 serial_data = cache.get("MAIN")
         if serial_data:
             esp32_data = serial_data_to_esp32_format(serial_data)
+            threshold = int(cfg.get("smoke_threshold", 500))
+            smoke_val = esp32_data.get("smoke")
+            if smoke_val is not None:
+                esp32_data["smoke_detected"] = bool(smoke_val > threshold)
             esp32_result = {
                 "ok": True,
                 "ip": "SERIAL",
@@ -1060,6 +1064,7 @@ def api_config():
         "server_refresh_sec", "window_sec", "min_rms", "cooldown_sec",
         "thermal_display_min_c", "thermal_display_max_c", "thermal_min_human_temp_c", "thermal_max_human_temp_c",
         "thermal_min_delta_above_ambient_c", "lora_sim_interval_sec", "lora_frequency_mhz", "lora_bandwidth_khz",
+        "smoke_threshold",
     ]
     allowed_bool = ["camera_enabled", "camera_retry_on_failed_read", "auto_start", "thermal_enabled", "thermal_simulation", "thermal_mirror_x", "thermal_mirror_y", "lora_enabled", "event_recording_enabled", "esp32_serial_enabled"]
 

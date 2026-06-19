@@ -304,6 +304,7 @@ async function refreshStatus() {
     currentLocal = status.local;
     renderLocalCamera(currentLocal);
     renderLocalSensor(currentLocal, localSerial);
+  { let lsv = document.getElementById('liveSmokeVal'); if (lsv) { let sm = currentLocal.sensor_summary || {}; lsv.textContent = sm.smoke_raw != null ? sm.smoke_raw : '--'; let lss = document.getElementById('liveSmokeStatus'); if (lss) { let raw = sm.smoke_raw; let thresh = currentConfig.smoke_threshold || 500; lss.textContent = raw != null ? (raw > thresh ? 'ABNORMAL' : 'Normal') : '--'; lss.className = 'badge ' + (raw != null && raw > thresh ? 'red' : 'green'); } } }
   var lsv = document.getElementById('liveSmokeVal');
   if (lsv) { var sm = currentLocal.sensor_summary || {}; lsv.textContent = sm.smoke_raw != null ? sm.smoke_raw : '--'; }
     updateChainsawDisplay(currentLocal.chainsaw || {});
