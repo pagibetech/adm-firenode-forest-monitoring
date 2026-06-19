@@ -304,6 +304,8 @@ async function refreshStatus() {
     currentLocal = status.local;
     renderLocalCamera(currentLocal);
     renderLocalSensor(currentLocal, localSerial);
+  var lsv = document.getElementById('liveSmokeVal');
+  if (lsv) { var sm = currentLocal.sensor_summary || {}; lsv.textContent = sm.smoke_raw != null ? sm.smoke_raw : '--'; }
     updateChainsawDisplay(currentLocal.chainsaw || {});
     updateChainsawSettings(status.config || {});
     updateAlerts(status.recent_alerts || []);

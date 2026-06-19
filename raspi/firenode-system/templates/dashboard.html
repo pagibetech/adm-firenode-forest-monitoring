@@ -239,13 +239,14 @@
         </div>
 
         <div class="card">
-          <h2>Sensor Thresholds</h2>
+          <h2>Smoke Sensor Threshold</h2>
           <div class="form-grid">
             <label>Smoke Normal (raw ADC, 0-4095)
               <input id="smokeThresholdInput" type="number" min="0" max="4095" step="1" value="500">
             </label>
           </div>
-          <p class="muted">Smoke ADC values above this threshold will be flagged as abnormal.</p>
+          <div class="sensor-line"><span>Live Smoke ADC</span><strong id="liveSmokeVal">--</strong></div>
+          <p class="muted">Smoke ADC above threshold = abnormal.</p>
         </div>
 
         <div class="card">

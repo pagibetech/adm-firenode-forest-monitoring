@@ -323,19 +323,13 @@ function renderSelectedNode() {
     </div>
     <div>
       <h2>Status</h2>
-      <div class="sensor-line"><span>ESP32 IP</span><strong>${n.esp32_ok ? safe(n.esp32_ip) : 'Not connected'}</strong></div>
+      <div class="sensor-line"><span>ESP32</span><strong>${n.esp32_ok ? safe(n.esp32_ip) : 'Not connected'}</strong></div>
       <div class="sensor-line"><span>Temperature</span><strong>${safe(s.temperature)} °C</strong></div>
       <div class="sensor-line"><span>Humidity</span><strong>${safe(s.humidity)} %</strong></div>
       <div class="sensor-line"><span>Smoke</span><strong class="${s.smoke_detected ? 'bad-text' : 'ok-text'}">${s.smoke_detected ? 'Detected' : 'Normal'}</strong></div>
       <div class="sensor-line"><span>PIR Human</span><strong class="${s.human_detected ? 'bad-text' : 'ok-text'}">${s.human_detected ? 'Detected' : 'No motion'}</strong></div>
-      <div class="sensor-line"><span>Thermal Human</span><strong class="${td.human_detected || s.thermal_human_detected ? 'bad-text' : 'ok-text'}">${td.human_detected || s.thermal_human_detected ? 'Detected' : 'No human'}</strong></div>
-      <div class="sensor-line"><span>Thermal Reason</span><strong>${safe(td.reason)}</strong></div>
       <div class="sensor-line"><span>Chainsaw</span><strong class="${c.confirmed_detection ? 'bad-text' : 'ok-text'}">${c.confirmed_detection ? 'Detected' : (c.running ? 'Monitoring' : 'Stopped')}</strong></div>
-      <div class="sensor-line"><span>LoRa Packet</span><strong>Seq ${safe(s.last_lora_seq)} | RSSI ${safe(s.lora_rssi_dbm)} dBm</strong></div>
       <div class="sensor-line"><span>Battery</span><strong>${safe(s.battery_v)} V</strong></div>
-      <div class="sensor-line"><span>Battery</span><strong>${safe(s.battery_v)} V</strong></div>
-      <h3>Raw Node JSON</h3>
-      <pre class="json small-json">${JSON.stringify(n, null, 2)}</pre>
     </div>
   </div>`;
 }
@@ -363,6 +357,7 @@ async function refreshStatus() {
     $('healthBadge').className = 'badge ' + (count > 0 ? 'red' : 'green');
     renderAllVideos(allNodes);
     renderSensorCards(allNodes);
+  var lsv = document.getElementById('liveSmokeVal'); if (lsv) { var sm = status.local.sensor_summary || {}; lsv.textContent = sm.smoke_raw != null ? sm.smoke_raw : '--'; }
     updateNodeSelect(allNodes);
     loadRecordings();
   } catch (e) {
