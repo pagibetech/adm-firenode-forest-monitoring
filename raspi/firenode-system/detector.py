@@ -156,19 +156,17 @@ def analyze_audio(audio: np.ndarray, sample_rate: int, cfg: Dict[str, Any]) -> D
     rms_score = _clamp01((rms - min_rms) / max(min_rms * 7.0, 1e-6))
 
     # Broad scoring. This intentionally favors any loud mechanical/broadband sound.
-    mechanical_score = _clamp01((mechanical_ratio - 0.40) / 0.40)
+    mechanical_score = _clamp01((mechanical_ratio - 0.30) / 0.45)
     chain_score = _clamp01((chain_ratio - 0.10) / 0.40)
     engine_score = _clamp01((engine_ratio - 0.20) / 0.50)
     rough_score = _clamp01((spectral_flatness - 0.05) / 0.35)
-    mechanical_floor = _clamp01((mechanical_ratio - 0.60) / 0.10)
 
     score = 100.0 * (
-        0.35 * rms_score +
-        0.25 * mechanical_score +
-        0.20 * chain_score +
-        0.05 * engine_score +
-        0.10 * rough_score +
-        0.10 * mechanical_floor
+        0.30 * rms_score +
+        0.15 * mechanical_score +
+        0.35 * chain_score +
+        0.10 * engine_score +
+        0.10 * rough_score
     )
 
     # Hard gate: prevent silent files/noise from triggering.
@@ -390,10 +388,14 @@ class ChainsawDetector:
             "instant_detection": False,
             "score": 0.0,
             "rms": 0.0,
+            "peak": 0.0,
+            "waveform": [],
             "bands": {},
             "last_update": None,
             "error": None,
             "device": cfg.get("input_device"),
+            "device_name": None,
+            "sample_rate": 0,
             "alerts_total": 0,
         }
 
@@ -457,12 +459,23 @@ class ChainsawDetector:
 
         while not self.stop_event.is_set():
             try:
-                sample_rate = int(self.cfg.get("sample_rate", 16000))
+                cfg_rate = int(self.cfg.get("sample_rate", 16000))
                 window_sec = float(self.cfg.get("window_sec", 1.0))
-                frames = int(sample_rate * window_sec)
                 device = self.cfg.get("input_device", None)
                 if device in ["", "None", "null"]:
                     device = None
+
+                sample_rate = cfg_rate
+                if device is not None:
+                    try:
+                        dev_info = sd.query_devices(device=device)
+                        dev_rate = int(dev_info.get("default_samplerate", 0))
+                        if dev_rate > 0 and dev_rate != cfg_rate:
+                            sample_rate = dev_rate
+                    except Exception:
+                        pass
+
+                frames = int(sample_rate * window_sec)
 
                 audio = sd.rec(
                     frames,
@@ -473,6 +486,14 @@ class ChainsawDetector:
                 )
                 sd.wait()
                 audio = audio.flatten()
+
+                peak = float(np.max(np.abs(audio))) if len(audio) > 0 else 0.0
+                wav_len = len(audio)
+                if wav_len > 200:
+                    step = max(1, wav_len // 150)
+                    waveform = [float(audio[i]) for i in range(0, wav_len, step)][:150]
+                else:
+                    waveform = [float(x) for x in audio]
 
                 res = analyze_audio(audio, sample_rate, self.cfg)
                 instant = bool(res.get("detected", False))
@@ -488,10 +509,13 @@ class ChainsawDetector:
                         "confirmed_detection": confirmed,
                         "score": res.get("score", 0.0),
                         "rms": res.get("rms", 0.0),
+                        "peak": peak,
+                        "waveform": waveform,
                         "bands": res.get("bands", {}),
                         "last_update": now_text(),
                         "error": None,
                         "device": device,
+                        "sample_rate": sample_rate,
                     })
 
                 if confirmed:
