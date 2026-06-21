@@ -1427,6 +1427,16 @@ def api_audio_monitor():
     })
 
 
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """Shutdown the RPi. Requires password auth."""
+    auth = request.authorization
+    if not auth or auth.username != "betech" or auth.password != "betech":
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    subprocess.Popen(["sudo", "poweroff"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return jsonify({"ok": True, "message": "Shutting down..."})
+
+
 @app.route("/api/browse")
 def api_browse():
     path = resolve_path(request.args.get("path"))
