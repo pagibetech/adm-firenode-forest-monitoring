@@ -24,6 +24,7 @@
     <button class="tab-button" data-tab="nodeTab" onclick="showTab('nodeTab')">Node Detail</button>
     <button class="tab-button" data-tab="settingsTab" onclick="showTab('settingsTab')">Settings</button>
     <button class="tab-button" data-tab="toolsTab" onclick="showTab('toolsTab')">Tools</button>
+    <button class="tab-button" data-tab="sensorLogsTab" onclick="showTab('sensorLogsTab')">Data Logs</button>
   </nav>
 
   <main class="wrap">
@@ -78,13 +79,6 @@
         </div>
       </section>
 
-      <section class="card">
-        <div class="section-header">
-          <h2>Recent Recordings</h2>
-          <button onclick="loadRecordings()">Refresh Recordings</button>
-        </div>
-        <div id="recordingCards" class="recording-grid"></div>
-      </section>
     </section>
 
     <section id="nodeTab" class="tab-panel">
@@ -250,6 +244,26 @@
         </div>
 
         <div class="card">
+<div class="card">
+          <h2>Stepper Motor Control</h2>
+          <div id="stepperStatus" class="muted">Stopped | Home: --</div>
+          <div class="form-grid">
+            <label>Speed (step delay us)
+              <input id="stepperSpeedInput" type="number" min="500" max="10000" step="100" value="2000">
+            </label>
+            <label>Cycle Interval (1-60 sec)
+              <input id="stepperIntervalInput" type="number" min="1" max="60" step="1" value="10">
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="stepperInitBtn" onclick="stepperInitialize()" class="primary">Initialize</button>
+            <button id="stepperSingleBtn" onclick="stepperSingleRotation()" class="primary">Single Rotation</button>
+            <button id="stepperStartBtn" onclick="stepperStart()" class="ok">Start Rotation</button>
+            <button id="stepperStopBtn" onclick="stepperStop()" class="danger" disabled>Stop</button>
+          </div>
+          <p class="muted">CW until home (LOW) -> pause 3s -> CCW away then CW back to home = one cycle. Interval between cycles.</p>
+        </div>
+
           <h2>Wi-Fi Settings Reference</h2>
           <p class="muted">The GUI stores Wi-Fi credentials and shows the exact terminal commands to apply them. It does not automatically change Wi-Fi because that can disconnect the RPi while you are accessing it remotely.</p>
           <div class="form-grid">
@@ -277,44 +291,146 @@
       <button onclick="saveSettings()" class="primary full">Save All Settings</button>
     </section>
 
-    <section id="toolsTab" class="tab-panel">
-      <section class="two-col">
-        <div class="card">
-          <h2>Quick Controls</h2>
-          <div class="button-row">
-            <button onclick="startDetector()" class="ok">Start Chainsaw Detection</button>
-            <button onclick="stopDetector()" class="danger">Stop Chainsaw Detection</button>
-          </div>
-          <div class="button-row">
-            <button onclick="refreshNow()">Refresh Dashboard</button>
-            <button onclick="loadMicDevices()">Refresh USB Mic List</button>
-          </div>
-          <h3>USB Mic Devices</h3>
-          <div id="micDevices" class="result-list"></div>
-        </div>
-
-        <div class="card">
-          <h2>Audio File Chainsaw Test</h2>
-          <div class="form-grid single">
-            <label>Folder Path
-              <input id="browsePathInput" placeholder="test_audio, /home/pi, /media, /mnt">
+    <section id="sensorLogsTab" class="tab-panel">
+      <section class="card">
+        <div class="section-header">
+          <h2>Data Logs</h2>
+          <div class="button-row" style="gap:8px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem">Node
+              <select id="logNodeFilter" onchange="loadSensorLogs()" style="padding:4px 8px">
+                <option value="">All Nodes</option>
+              </select>
             </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem">Limit
+              <select id="logLimitSelect" onchange="loadSensorLogs()" style="padding:4px 8px">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="500">500</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem">Sort
+              <select id="logSortSelect" onchange="loadSensorLogs()" style="padding:4px 8px">
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </select>
+            </label>
+            <button onclick="loadSensorLogs()" class="primary" style="padding:4px 14px">Refresh</button>
+            <button onclick="downloadSensorLogsCSV()" class="primary" style="padding:4px 14px">Download CSV</button>
           </div>
-          <div class="button-row">
-            <button onclick="browseAudio()">Open Folder</button>
-            <button onclick="browseAudio('test_audio')">Included Test Audio</button>
-          </div>
-          <div id="audioBrowser" class="browser"></div>
-          <div id="analysisResult" class="json small-json"></div>
         </div>
+        <div style="overflow-x:auto">
+          <table id="sensorLogTable" class="data-table" style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead><tr>
+              <th>Time</th><th>Node</th><th>Temp</th><th>Humidity</th><th>Smoke</th><th>PIR</th><th>Human</th><th>Battery</th>
+            </tr></thead>
+            <tbody id="sensorLogBody"></tbody>
+          </table>
+        </div>
+        <div id="sensorLogTotal" class="muted" style="margin-top:8px"></div>
+        <div id="sensorLogError" class="bad-text" style="margin-top:8px;display:none"></div>
       </section>
 
+      <section class="card">
+        <div class="section-header">
+          <h2>Recent Recordings</h2>
+          <button onclick="loadRecordings()">Refresh Recordings</button>
+            <a href="/api/recordings" download="recordings_metadata.json" class="primary" style="padding:4px 14px;font-size:0.85rem;text-decoration:none;border-radius:6px">Download All</a>
+        </div>
+        <div id="recordingCards" class="recording-grid"></div>
+      </section>
+    </section>
+
+<section id="toolsTab" class="tab-panel">
+            <section class="two-col">
+      <div class="card">
+        <div class="section-header">
+          <h2>Chainsaw Detector</h2>
+          <span id="chainsawStatusBadge" class="badge">Stopped</span>
+        </div>
+        <div class="button-row">
+          <button onclick="startDetector()" class="ok">Start Detection</button>
+          <button onclick="stopDetector()" class="danger">Stop Detection</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="sensor-line"><span>Status</span><strong id="chStatus">--</strong></div>
+          <div class="sensor-line"><span>Score</span><strong id="chScore">--</strong></div>
+          <div class="sensor-line"><span>RMS</span><strong id="chRms">--</strong></div>
+          <div class="sensor-line"><span>Alerts Total</span><strong id="chAlerts">--</strong></div>
+          <div id="chErrorRow" class="sensor-line" style="display:none"><span>Error</span><strong id="chError" class="bad-text">--</strong></div>
+        </div>
+        <h3>Audio Input Monitor</h3>
+        <div id="audioMonitor" class="audio-monitor">
+          <div class="muted">Start Detection to monitor live audio.</div>
+        </div>
+        <h3>Detector Settings</h3>
+        <div class="form-grid">
+          <label>Score Threshold
+            <input id="chScoreThreshold" type="number" min="10" max="200" step="1">
+          </label>
+          <label>Min RMS
+            <input id="chMinRms" type="number" min="0.001" max="1.0" step="0.001">
+          </label>
+          <label>Required Hits
+            <input id="chRequireHits" type="number" min="1" max="20" step="1">
+          </label>
+          <label>Cooldown (sec)
+            <input id="chCooldown" type="number" min="5" max="300" step="1">
+          </label>
+        </div>
+        <div style="margin-top:10px">
+          <button onclick="saveChainSettings()" class="primary full">Save Chainsaw Settings</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Audio File Chainsaw Test</h2>
+        <div class="form-grid single">
+          <label>Folder Path
+            <input id="browsePathInput" placeholder="/home/betech/chainsaw_audio">
+          </label>
+        </div>
+        <div class="button-row" style="grid-template-columns:1fr">
+          <button onclick="showBrowserDialog()">Browse RPi Folder</button>
+        </div>
+
+        <div id="fileControls" style="display:none;margin-top:12px;background:var(--card2,#24344a);border:1px solid var(--border,#31465f);border-radius:10px;padding:12px">
+          <audio id="audioPlayer" controls style="width:100%;margin-bottom:10px;display:none"></audio>
+          <div class="button-row">
+            <button id="playFileBtn" onclick="playSelectedAudio()" class="ok">Play</button>
+            <button id="stopFileBtn" onclick="stopSelectedAudio()" class="danger">Stop</button>
+            <button id="clearFileBtn" onclick="clearSelectedFile()">Clear</button>
+          </div>
+          <div id="detectionResult" style="margin-top:10px;display:none"></div>
+        </div>
+
+        <h3 style="margin-top:14px">Audio Input Devices</h3>
+        <div class="button-row" style="grid-template-columns:1fr">
+          <button onclick="loadMicDevices()">Refresh Device List</button>
+        </div>
+        <div id="micDevices" class="result-list"></div>
+        <div id="audioBrowser" class="browser"></div>
+        <div id="analysisResult" class="json small-json"></div>
+      </div>
+    </section>
+
+          </section>
+
+      
       <section class="card">
         <h2>Local /api/node-data JSON</h2>
         <pre id="jsonBox" class="json">Loading...</pre>
       </section>
-    </section>
-  </main>
+    
+      <section class="card">
+        <h2>Shutdown RPi</h2>
+        <p style="color:var(--text-muted,#999);font-size:0.85rem;margin-bottom:10px">Securely power off this Raspberry Pi. Requires password.</p>
+        <div class="button-row" style="grid-template-columns:1fr">
+          <button onclick="shutdownRPi()" class="danger">Shutdown Now</button>
+        </div>
+        <div id="shutdownMsg" style="margin-top:8px"></div>
+      </section>
+
+</main>
 
   <script src="/static/app.js"></script>
 </body>

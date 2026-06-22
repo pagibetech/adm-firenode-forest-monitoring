@@ -59,13 +59,17 @@ from modules.lora_simulator import LoraPacketSimulator
 from modules.multi_camera_stream import MultiCameraManager, parse_camera_indexes
 from modules.network_utils import get_network_summary, get_primary_ip, node_name_from_ip, subnet_prefix_from_ip
 from modules.node_registry import pull_nodes, scan_rpi_nodes
+from modules.sensor_logger import SensorLogger
 from modules.thermal_camera import ThermalCameraService
+
+from modules.stepper_controller import get_stepper
 
 APP_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG_PATH = os.path.join(APP_DIR, "config.json")
 TEST_AUDIO_DIR = os.path.join(APP_DIR, "test_audio")
 LOG_DIR = os.path.join(APP_DIR, "logs")
 ALERT_DB = os.path.join(LOG_DIR, "alerts.db")
+SENSOR_DB = os.path.join(LOG_DIR, "sensor_logs.db")
 LORA_DB = os.path.join(LOG_DIR, "lora_packets.db")
 REMOTE_NODE_COUNT = 3
 
@@ -113,6 +117,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "camera_backend": "V4L2",
     "camera_fourcc": "MJPG",
     "camera_usb_fallback": True,
+    "sensor_log_interval_sec": 60,
     "camera_open_warmup_frames": 10,
     "camera_retry_on_failed_read": True,
     "camera_width": 640,
@@ -255,6 +260,18 @@ save_detector_config(cfg, CONFIG_PATH)
 alert_logger = AlertLogger(ALERT_DB)
 lora_store = LoraPacketStore(LORA_DB)
 event_recorder = EventRecorder(os.path.join(APP_DIR, "media"), lambda: cfg)
+def esp32_provider_from_serial():
+    from modules.esp32_serial_reader import serial_data_to_esp32_format
+    if not cfg.get("esp32_serial_enabled") or esp32_serial_reader is None:
+        return None
+    cache = esp32_serial_reader.get_cache()
+    raw = cache.get("MAIN") or None
+    if raw is None:
+        return None
+    return serial_data_to_esp32_format(raw)
+
+sensor_logger = SensorLogger(SENSOR_DB, lambda: cfg, esp32_provider_from_serial)
+sensor_logger.start()
 detector = ChainsawDetector(cfg, APP_DIR)
 cameras = MultiCameraManager(lambda: cfg)
 thermal = ThermalCameraService(lambda: cfg)
@@ -613,7 +630,7 @@ def simulated_alert_rows(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if td.get("human_detected"):
             rows.append({"timestamp": now_text(), "node_name": name, "source": "SIM MLX90640", "event_type": "HUMAN", "severity": "SIM", "message": "Simulation: thermal human alert active"})
         if c.get("confirmed_detection"):
-            rows.append({"timestamp": now_text(), "node_name": name, "source": "SIM Audio", "event_type": "CHAINSAW", "severity": "SIM", "message": "Simulation: chainsaw alert active"})
+            rows.append({"timestamp": now_text(), "node_name": name, "source": "SIM Audio", "event_type": event_type_map.get(event_key, "ALERT"), "severity": "SIM", "message": "Simulation: chainsaw alert active"})
     return rows
 
 def build_video_streams(base_url: str, cam_status: Dict[str, Any], thermal_status: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -679,13 +696,13 @@ def detect_alert_transitions(node_name: str, esp32_data: Dict[str, Any], chainsa
         if active and not previous:
             details = json.dumps({"esp32": esp32_data, "chainsaw": chainsaw_status, "thermal": thermal_status})[:2000]
             alert_logger.log(node_name, sources[event_key], event_type_map[event_key], "ALERT", messages[event_key], details)
-            if event_key == "chainsaw":
+            if event_key in ("chainsaw", "pir_human", "thermal_human"):
                 try:
                     primary_idx = int(cfg.get("camera_device_index", 0))
                     frame = cameras.get_stream(primary_idx).get_frame()
                     record = event_recorder.record_snapshot_event(
                         node_name,
-                        "CHAINSAW",
+                        event_type_map.get(event_key, "ALERT"),
                         {"source": sources[event_key], "message": messages[event_key], "chainsaw": chainsaw_status},
                         frame_jpeg=frame,
                     )
@@ -1056,7 +1073,7 @@ def api_config():
     allowed_int = [
         "port", "esp32_scan_workers", "camera_device_index", "camera_width", "camera_height", "camera_fps",
         "camera_jpeg_quality", "camera_open_warmup_frames", "sample_rate", "score_threshold", "require_hits", "history_windows",
-        "thermal_refresh_rate_hz", "thermal_min_blob_pixels", "thermal_rotate_degrees", "lora_spreading_factor",
+        "thermal_refresh_rate_hz", "thermal_min_blob_pixels", "thermal_rotate_degrees", "lora_spreading_factor", "sensor_log_interval_sec",
         "esp32_serial_baud",
     ]
     allowed_float = [
@@ -1265,6 +1282,97 @@ def api_alerts():
     limit = int(request.args.get("limit", 100))
     return jsonify({"ok": True, "alerts": alert_logger.recent(limit)})
 
+@app.route("/api/sensor-logs")
+def api_sensor_logs():
+    node_name = request.args.get("node") or None
+    since = request.args.get("since") or None
+    until = request.args.get("until") or None
+    sort = request.args.get("sort", "desc")
+    limit = int(request.args.get("limit", 100))
+    offset = int(request.args.get("offset", 0))
+
+    # Query local sensor logs
+    local_rows, local_total = sensor_logger.query(node_name, since, until, sort, limit, offset)
+    local_nodes = sensor_logger.get_nodes()
+    all_rows = list(local_rows)
+    all_nodes = set(local_nodes)
+    remote_total = 0
+
+    # Aggregate from remote nodes (server role only)
+    if current_role() == "server":
+        remote_ips = cfg.get("remote_node_ips") or []
+        port = int(cfg.get("port", 8090))
+        import urllib.request, json as json_lib
+        for rip in remote_ips:
+            if not rip:
+                continue
+            try:
+                url = f"http://{rip}:{port}/api/sensor-logs?limit={limit}&sort={sort}"
+                if node_name:
+                    url += f"&node={urllib.request.quote(node_name)}"
+                if since:
+                    url += f"&since={urllib.request.quote(since)}"
+                if until:
+                    url += f"&until={urllib.request.quote(until)}"
+                resp = urllib.request.urlopen(url, timeout=3)
+                data = json_lib.loads(resp.read().decode())
+                if data.get("ok"):
+                    remote_rows = data.get("rows", [])
+                    all_rows.extend(remote_rows)
+                    remote_total += data.get("total", len(remote_rows))
+                    for n in data.get("nodes", []):
+                        all_nodes.add(n)
+            except Exception:
+                pass
+
+    # Re-sort combined results
+    reverse = sort.lower() != "asc"
+    all_rows.sort(key=lambda r: r.get("id", 0), reverse=reverse)
+
+    # Apply limit/offset on combined results
+    total_combined = len(all_rows) + local_total + remote_total
+    sliced = all_rows[offset:offset+limit] if offset < len(all_rows) else []
+
+    return jsonify({
+        "ok": True,
+        "rows": sliced,
+        "total": len(all_rows),
+        "nodes": sorted(all_nodes),
+        "limit": limit,
+        "offset": offset,
+        "local_total": local_total,
+        "remote_total": remote_total,
+    })
+
+
+
+@app.route("/api/sensor-logs/csv")
+def api_sensor_logs_csv():
+    node_name = request.args.get("node") or None
+    since = request.args.get("since") or None
+    until = request.args.get("until") or None
+    sort = request.args.get("sort", "desc")
+    limit = int(request.args.get("limit", 10000))
+    rows, _ = sensor_logger.query(node_name, since, until, sort, limit, 0)
+    import io, csv
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Time","Node","Temperature","Humidity","Smoke","SmokeDetected","PIR","HumanDetected","Battery_mV"])
+    for r in rows:
+        writer.writerow([
+            r.get("timestamp",""),
+            r.get("node_name",""),
+            r.get("temperature",""),
+            r.get("humidity",""),
+            r.get("smoke",""),
+            r.get("smoke_detected",""),
+            r.get("pir",""),
+            r.get("human_detected",""),
+            r.get("battery_raw",""),
+        ])
+    resp = Response(output.getvalue(), mimetype="text/csv")
+    resp.headers["Content-Disposition"] = "attachment; filename=sensor_logs.csv"
+    return resp
 
 @app.route("/api/recordings")
 def api_recordings():
@@ -1427,6 +1535,59 @@ def api_audio_monitor():
     })
 
 
+# --- Stepper Motor Control ---
+@app.route("/api/stepper/initialize")
+def api_stepper_initialize():
+    try:
+        polarity = str(cfg.get("stepper_home_active_low", "true")).lower() != "false"
+        s = get_stepper(home_active_low=polarity)
+        s.set_home_polarity(polarity)
+        s.do_initialize()
+        return jsonify({"ok": True, "status": s.status()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/stepper/single-rotation")
+def api_stepper_single_rotation():
+    try:
+        polarity = str(cfg.get("stepper_home_active_low", "true")).lower() != "false"
+        s = get_stepper(home_active_low=polarity)
+        s.set_home_polarity(polarity)
+        s.do_single_rotation()
+        return jsonify({"ok": True, "status": s.status()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/stepper/start")
+def api_stepper_start():
+    try:
+        s = get_stepper()
+        speed = int(request.args.get("speed", 2000))
+        interval = int(request.args.get("interval", 10))
+        s.set_speed(speed)
+        s.set_interval(interval)
+        s.start()
+        return jsonify({"ok": True, "status": s.status()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/stepper/stop")
+def api_stepper_stop():
+    try:
+        s = get_stepper()
+        s.stop()
+        return jsonify({"ok": True, "status": s.status()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/stepper/status")
+def api_stepper_status():
+    try:
+        s = get_stepper()
+        return jsonify({"ok": True, "status": s.status()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
 @app.route("/api/shutdown", methods=["POST"])
 def api_shutdown():
     """Shutdown the RPi. Requires password auth."""
@@ -1516,7 +1677,7 @@ def api_analyze_file():
     try:
         result = analyze_audio_file(path, cfg)
         if result.get("confirmed"):
-            alert_logger.log(local_node_name(), "Audio File Test", "CHAINSAW", "TEST", f"Chainsaw-like sound detected in file: {os.path.basename(path)}", json.dumps(result)[:2000])
+            alert_logger.log(local_node_name(), "Audio File Test", event_type_map.get(event_key, "ALERT"), "TEST", f"Chainsaw-like sound detected in file: {os.path.basename(path)}", json.dumps(result)[:2000])
         return jsonify({"ok": True, "mode": "file", "result": result, "config": cfg})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

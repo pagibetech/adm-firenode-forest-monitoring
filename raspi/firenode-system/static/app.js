@@ -272,7 +272,7 @@ async function loadRecordings() {
     }
     recordings.forEach(rec => {
       const urls = rec.file_urls || [];
-      const img = urls.length ? `<img src="${urls[0]}" alt="${safe(rec.event_type)} recording snapshot">` : '<div class="placeholder-box"><strong>No snapshot</strong></div>';
+      const img = urls.length ? `<div style="position:relative"><img src="${urls[0]}" alt="${safe(rec.event_type)} recording snapshot" style="display:block;width:100%"><div style="margin-top:6px;text-align:center"><a href="${urls[0]}" download="${rec.node_name}-${(rec.timestamp||"").replace(/[: ]/g,"-")}-${rec.event_type}.jpg" class="primary" style="padding:4px 12px;font-size:0.8rem;text-decoration:none;display:inline-block;border-radius:6px;background:#3b82f6;color:#fff">Download Image</a></div></div>` : '<div class="placeholder-box"><strong>No snapshot</strong></div>';
       const card = document.createElement('div');
       card.className = 'recording-card';
       card.innerHTML = `${img}
@@ -361,6 +361,10 @@ async function refreshStatus() {
   var lsv = document.getElementById('liveSmokeVal'); if (lsv) { var sm = status.local.sensor_summary || {}; lsv.textContent = sm.smoke_raw != null ? sm.smoke_raw : '--'; }
     updateNodeSelect(allNodes);
     loadRecordings();
+    var localCh = (status.local || {}).chainsaw || {};
+    updateChainsawDisplay(localCh);
+    updateChainsawSettings(status.config || {});
+    updateAudioMonitor(localCh, status.local_serial || {});
   } catch (e) {
     $('healthBadge').textContent = 'Dashboard Error';
     $('healthBadge').className = 'badge red';
@@ -420,6 +424,164 @@ async function scanNodes() {
     box.innerHTML = `<div class="muted">Node scan error: ${e.message}</div>`;
   }
 }
+
+
+async function stepperStart() {
+  const speed = Number($('stepperSpeedInput').value || 2000);
+  const interval = Number($('stepperIntervalInput').value || 10);
+  try {
+    const data = await api('/api/stepper/start?speed=' + speed + '&interval=' + interval);
+    if (data.ok) {
+      $('stepperStartBtn').disabled = true;
+      $('stepperStopBtn').disabled = false;
+      pollStepperStatus();
+    } else {
+      alert('Start failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+
+async function stepperInitialize() {
+  try {
+    const data = await api('/api/stepper/initialize');
+    if (data.ok) {
+      $('stepperInitBtn').disabled = true;
+      pollStepperStatus();
+    } else {
+      alert('Initialize failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function stepperSingleRotation() {
+  try {
+    const data = await api('/api/stepper/single-rotation');
+    if (data.ok) {
+      $('stepperSingleBtn').disabled = true;
+      pollStepperStatus();
+    } else {
+      alert('Single Rotation failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function stepperInitialize() {
+  try {
+    const data = await api('/api/stepper/initialize');
+    if (data.ok) {
+      $('stepperInitBtn').disabled = true;
+      pollStepperStatus();
+    } else {
+      alert('Initialize failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function stepperSingleRotation() {
+  try {
+    const data = await api('/api/stepper/single-rotation');
+    if (data.ok) {
+      $('stepperSingleBtn').disabled = true;
+      pollStepperStatus();
+    } else {
+      alert('Single Rotation failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function stepperStop() {
+  try {
+    const data = await api('/api/stepper/stop');
+    if (data.ok) {
+      $('stepperStartBtn').disabled = false;
+      $('stepperStopBtn').disabled = true;
+      $('stepperStatus').textContent = 'Stopped';
+    }
+  } catch (e) {}
+}
+
+
+
+async function downloadSensorLogsCSV() {
+  const node = document.getElementById("logNodeFilter")?.value || "";
+  const sort = document.getElementById("logSortSelect")?.value || "desc";
+  let url = "/api/sensor-logs/csv?limit=10000&sort=" + sort;
+  if (node) url += "&node=" + encodeURIComponent(node);
+  window.open(url, "_blank");
+}
+
+async function loadSensorLogs() {
+  const node = document.getElementById('logNodeFilter')?.value || '';
+  const limit = document.getElementById('logLimitSelect')?.value || 100;
+  const sort = document.getElementById('logSortSelect')?.value || 'desc';
+  let url = '/api/sensor-logs?limit=' + limit + '&sort=' + sort;
+  if (node) url += '&node=' + encodeURIComponent(node);
+  try {
+    const data = await api(url);
+    if (!data.ok) throw new Error(data.error || 'API error');
+    const tbody = document.getElementById('sensorLogBody');
+    if (!tbody) return;
+    // Update node filter options
+    const filter = document.getElementById('logNodeFilter');
+    if (filter && data.nodes) {
+      const current = filter.value;
+      filter.innerHTML = '<option value="">All Nodes</option>' + data.nodes.map(n => '<option value="' + n + '"' + (n === current ? ' selected' : '') + '>' + n + '</option>').join('');
+    }
+    // Render rows
+    tbody.innerHTML = data.rows.map(r => '<tr>' +
+      '<td>' + (r.timestamp || '').slice(0,19) + '</td>' +
+      '<td>' + (r.node_name || '') + '</td>' +
+      '<td>' + (r.temperature != null ? r.temperature.toFixed(1) + '°C' : '--') + '</td>' +
+      '<td>' + (r.humidity != null ? r.humidity.toFixed(1) + '%' : '--') + '</td>' +
+      '<td>' + (r.smoke != null ? r.smoke : '--') + '</td>' +
+      '<td>' + (r.pir != null ? (r.pir ? '⚠️' : '✓') : '--') + '</td>' +
+      '<td>' + (r.human_detected != null ? (r.human_detected ? '⚠️' : '✓') : '--') + '</td>' +
+      '<td>' + (r.battery_raw != null ? r.battery_raw + 'mV' : '--') + '</td>' +
+      '</tr>').join('');
+    document.getElementById('sensorLogTotal').textContent = 'Total: ' + data.total + ' rows';
+  } catch (e) {
+    const errDiv = document.getElementById('sensorLogError');
+    if (errDiv) { errDiv.textContent = 'Error: ' + e.message; errDiv.style.display = 'block'; }
+  }
+}
+
+// Auto-load sensor logs when the tab is shown
+(function() {
+  const origShowTab = window.showTab;
+  if (origShowTab) {
+    window.showTab = function(tabId) {
+      origShowTab(tabId);
+      if (tabId === 'sensorLogsTab') {
+        setTimeout(loadSensorLogs, 100);
+      }
+    };
+  }
+})();
+
+let stepperPollTimer = null;
+async function pollStepperStatus() {
+  try {
+    const data = await api('/api/stepper/status');
+    if (data.ok && data.status) {
+      const s = data.status;
+      $('stepperStatus').textContent = (s.running ? 'Running' : 'Stopped') + ' | Home: ' + (s.home ? 'YES' : 'no');
+      if (!s.running) {
+        $('stepperStartBtn').disabled = false;
+        $('stepperStopBtn').disabled = true;
+        if (stepperPollTimer) { clearInterval(stepperPollTimer); stepperPollTimer = null; }
+        return;
+      }
+      if (!stepperPollTimer) {
+        stepperPollTimer = setInterval(pollStepperStatus, 1000);
+      }
+    }
+  } catch (e) {}
+}
+
+// Initial status check
+(async function() { try { const d = await api('/api/stepper/status'); if (d.ok && d.status && d.status.running) { $('stepperStartBtn').disabled = true; $('stepperStopBtn').disabled = false; pollStepperStatus(); } } catch(e) {} })();
+
 
 async function saveSettings() {
   const mirror = $('thermalMirrorInput').value;
@@ -573,4 +735,387 @@ window.addEventListener('load', () => {
   loadRecordings();
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(refreshStatus, 3000);
+  if (audioPollTimer) clearInterval(audioPollTimer);
+  audioPollTimer = setInterval(audioPoll, 600);
 });
+function updateChainsawDisplay(ch) {
+  if (ch.confirmed_detection) {
+    $('chainsawStatusBadge').textContent = 'DETECTED';
+    $('chainsawStatusBadge').className = 'badge red';
+  } else if (ch.running) {
+    $('chainsawStatusBadge').textContent = 'Monitoring';
+    $('chainsawStatusBadge').className = 'badge green';
+  } else {
+    $('chainsawStatusBadge').textContent = 'Stopped';
+    $('chainsawStatusBadge').className = 'badge';
+  }
+  $('chStatus').textContent = ch.running ? (ch.confirmed_detection ? 'DETECTED' : 'Monitoring') : 'Stopped';
+  $('chScore').textContent = safe(ch.score);
+  $('chRms').textContent = safe(ch.rms);
+  $('chAlerts').textContent = safe(ch.alerts_total, '0');
+
+  if (ch.error) {
+    $('chErrorRow').style.display = '';
+    $('chError').textContent = ch.error;
+  } else {
+    $('chErrorRow').style.display = 'none';
+  }
+}
+
+var audioPollTimer = null;
+
+function updateAudioMonitor(ch, localSerial) {
+  var box = $('audioMonitor');
+  if (!box) return;
+
+  var hasMic = (currentConfig.input_device !== undefined && currentConfig.input_device !== null && currentConfig.input_device !== '');
+  var running = ch.running;
+
+  if (!hasMic) {
+    box.innerHTML = '<div class="muted">No audio input device selected. Use Refresh Device List below.</div>';
+    return;
+  }
+  if (!running) {
+    box.innerHTML = '<div class="muted">Mic available, detector stopped. Click Start Detection to monitor live audio.</div>';
+    return;
+  }
+
+  if (ch.error) {
+    box.innerHTML = '<div><span class="bad-text">Error: ' + ch.error + '</span></div>';
+    return;
+  }
+
+  var rms = Number(ch.rms) || 0;
+  var peak = Number(ch.peak) || 0;
+  var rmsPct = Math.min(100, Math.round(rms * 2000));
+  var peakPct = Math.min(100, Math.round(peak * 250));
+
+  var wf = ch.waveform || [];
+  var canvasId = 'audioWaveCanvas';
+  var html = '';
+  html += '<div class="audio-level-row"><span>RMS</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + rmsPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + rms.toFixed(4) + '</small></div>';
+  html += '<div class="audio-level-row"><span>Peak</span><div class="audio-bar-bg"><div class="audio-bar-fill" style="width:' + peakPct + '%"></div></div><small style="font-size:10px;color:var(--muted)">' + peak.toFixed(4) + '</small></div>';
+  html += '<canvas id="' + canvasId + '" class="audio-waveform"></canvas>';
+  html += '<div class="audio-meta"><span>Score: ' + safe(ch.score) + (ch.sample_rate ? ' | ' + (ch.sample_rate / 1000).toFixed(1) + 'kHz' : '') + '</span><span>' + safe(ch.last_update, '--') + '</span></div>';
+  box.innerHTML = html;
+
+  var canvas = $(canvasId);
+  if (canvas && wf.length > 0) {
+    var ctx = canvas.getContext('2d');
+    var cw = canvas.offsetWidth || canvas.parentElement.offsetWidth - 2;
+    var ch = 56;
+    canvas.width = cw;
+    canvas.height = ch;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    var mid = ch / 2;
+    var scale = (ch - 4) / 2;
+    for (var i = 0; i < wf.length; i++) {
+      var x = (i / (wf.length - 1)) * cw;
+      var y = mid - wf[i] * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(34,197,94,0.15)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(cw, mid);
+    ctx.stroke();
+  }
+}
+
+function updateChainsawSettings(config) {
+  $('chScoreThreshold').value = config.score_threshold !== undefined ? config.score_threshold : 60;
+  $('chMinRms').value = config.min_rms !== undefined ? config.min_rms : 0.015;
+  $('chRequireHits').value = config.require_hits !== undefined ? config.require_hits : 3;
+  $('chCooldown').value = config.cooldown_sec !== undefined ? config.cooldown_sec : 30;
+  if (!window._selectedAudioPath) {
+    $('browsePathInput').value = config.audio_browse_start_dir || 'test_audio';
+  }
+}
+
+
+async function audioPoll() {
+  try {
+    var data = await api('/api/audio-monitor');
+    var ch = {
+      running: data.running,
+      rms: data.rms,
+      peak: data.peak,
+      score: data.score,
+      waveform: data.waveform,
+      last_update: data.last_update,
+      error: data.error,
+      sample_rate: data.sample_rate
+    };
+    updateAudioMonitor(ch, {});
+  } catch (e) {}
+}
+
+
+
+async function saveThreshold() {
+  const payload = {
+    smoke_threshold: Number($('smokeThresholdInput').value || 500)
+  };
+  try {
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    alert('Threshold saved.');
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+  }
+}
+
+
+async function saveChainSettings() {
+  var payload = {
+    score_threshold: Number($('chScoreThreshold').value || 60),
+    min_rms: Number($('chMinRms').value || 0.015),
+    require_hits: Number($('chRequireHits').value || 3),
+    cooldown_sec: Number($('chCooldown').value || 30),
+    audio_browse_start_dir: $('browsePathInput').value.trim() || 'test_audio'
+  };
+  try {
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    await refreshStatus();
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+  }
+}
+
+
+async function selectMicDevice(deviceId) {
+  try {
+    var payload = { input_device: Number(deviceId) };
+    await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    currentConfig.input_device = Number(deviceId);
+    await loadMicDevices();
+  } catch (e) {
+    alert('Device select failed: ' + e.message);
+  }
+}
+
+function closeBrowserDialog() {
+  var overlay = document.getElementById('browserOverlay');
+  if (overlay) overlay.remove();
+}
+
+function showBrowserDialog(path) {
+  // Remove existing dialog if any
+  closeBrowserDialog();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'browserOverlay';
+  overlay.innerHTML = '<div id="browserDialog">'
+    + '<div class="browser-header"><h3>Browse RPi Files</h3><button onclick="closeBrowserDialog()">×</button></div>'
+    + '<div class="browser-path-bar" id="browserPathBar">Loading...</div>'
+    + '<div class="browser-body" id="browserBody"></div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+
+  // Close on overlay click (not dialog click)
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeBrowserDialog();
+  });
+
+  // Navigate
+  navigateBrowser(path || $('browsePathInput').value.trim() || 'test_audio');
+}
+
+function navigateBrowser(target) {
+  var pathBar = document.getElementById('browserPathBar');
+  var body = document.getElementById('browserBody');
+  if (!pathBar || !body) return;
+  pathBar.textContent = 'Opening folder...';
+  body.innerHTML = '<div class="browser-loading">Loading...</div>';
+
+  api('/api/browse?path=' + encodeURIComponent(target)).then(function(data) {
+    pathBar.textContent = data.path;
+    body.innerHTML = '';
+
+    // Parent directory
+    if (data.parent) {
+      var item = document.createElement('div');
+      item.className = 'browser-item';
+      item.innerHTML = '<span class="item-name">.. (parent)</span><button>Open</button>';
+      item.querySelector('button').onclick = function() { navigateBrowser(data.parent); };
+      body.appendChild(item);
+    }
+
+    // Shortcuts
+    (data.shortcuts || []).forEach(function(s) {
+      var item = document.createElement('div');
+      item.className = 'browser-item';
+      item.innerHTML = '<span class="item-name">' + s.label + '</span><button>Open</button>';
+      item.querySelector('button').onclick = function() { navigateBrowser(s.path); };
+      body.appendChild(item);
+    });
+
+    // Directories
+    (data.dirs || []).forEach(function(d) {
+      var item = document.createElement('div');
+      item.className = 'browser-item';
+      item.innerHTML = '<span class="item-name">' + d.name + '/</span><button>Open</button>';
+      item.querySelector('button').onclick = function() { navigateBrowser(d.path); };
+      body.appendChild(item);
+    });
+
+    // Files
+    (data.files || []).forEach(function(f) {
+      var item = document.createElement('div');
+      item.className = 'browser-item';
+      item.innerHTML = '<span class="item-name">' + f.name + ' <span class="item-size">' + safe(f.size_mb) + ' MB</span></span><button>Select</button>';
+      item.querySelector('button').onclick = function() {
+        selectBrowserFile(f.path, data.path);
+      };
+      body.appendChild(item);
+    });
+
+    if ((!data.dirs || !data.dirs.length) && (!data.files || !data.files.length)) {
+      body.innerHTML = '<div class="browser-empty">No supported audio files in this folder.</div>';
+    }
+  }).catch(function(e) {
+    // Fallback to home dir
+    if (target === 'test_audio' || target.indexOf('/home/betech/admfire/raspi/firenode-system/test_audio') >= 0) {
+      pathBar.textContent = 'Default folder not found, trying /home/betech...';
+      navigateBrowser('/home/betech');
+    } else {
+      pathBar.textContent = target;
+      body.innerHTML = '<div class="browser-empty">Browse error: ' + e.message + '</div>';
+    }
+  });
+}
+
+function selectBrowserFile(filePath, dirPath) {
+  $('browsePathInput').value = filePath;
+  closeBrowserDialog();
+  var ctrl = $('fileControls');
+  ctrl.style.display = 'block';
+  $('audioPlayer').src = '/api/audio?path=' + encodeURIComponent(filePath);
+  $('audioPlayer').style.display = 'none';
+  $('detectionResult').style.display = 'none';
+  $('playFileBtn').textContent = 'Play';
+  $('playFileBtn').disabled = false;
+  window._selectedAudioPath = filePath;
+}
+
+function playSelectedAudio() {
+  var player = $('audioPlayer');
+  var btn = $('playFileBtn');
+  if (player.paused) {
+    player.style.display = 'block';
+    player.play().catch(function(e) {
+      $('detectionResult').style.display = 'block';
+      $('detectionResult').innerHTML = '<div class="muted">Playback error: ' + e.message + '</div>';
+    });
+    btn.textContent = 'Pause';
+    // Auto-detect when playing
+    setTimeout(function() { detectSelectedFile(); }, 500);
+  } else {
+    player.pause();
+    btn.textContent = 'Play';
+  }
+}
+
+function stopSelectedAudio() {
+  var player = $('audioPlayer');
+  player.pause();
+  player.currentTime = 0;
+  player.style.display = 'none';
+  $('playFileBtn').textContent = 'Play';
+}
+
+function detectSelectedFile() {
+  var path = window._selectedAudioPath;
+  if (!path) return;
+  var result = $('detectionResult');
+  var btn = $('playFileBtn');
+  result.style.display = 'block';
+  result.innerHTML = '<div class="muted">Analyzing ' + path.split('/').pop() + ' ...</div>';
+
+  api('/api/analyze-file', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: path })
+  }).then(function(data) {
+    var r = data.result || {};
+    var confirmed = r.confirmed;
+    var avgScore = (r.average_score || 0).toFixed(1);
+    var hits = r.hits || 0;
+    var duration = (r.duration_sec || 0).toFixed(1);
+    var maxScore = (r.max_score || 0).toFixed(1);
+    var html = '';
+    if (confirmed) {
+      html += '<div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:8px">';
+      html += '<strong style="color:#ef4444;font-size:16px">CHAINSAW CONFIRMED</strong>';
+      html += '</div>';
+    } else {
+      html += '<div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px;margin-bottom:8px">';
+      html += '<strong style="color:#22c55e;font-size:16px">No chainsaw detected</strong>';
+      html += '</div>';
+    }
+    html += '<div class="sensor-line"><span>Avg Score</span><strong>' + avgScore + '</strong></div>';
+    html += '<div class="sensor-line"><span>Max Score</span><strong>' + maxScore + '</strong></div>';
+    html += '<div class="sensor-line"><span>Detection Hits</span><strong>' + hits + '</strong></div>';
+    html += '<div class="sensor-line"><span>Duration</span><strong>' + duration + 's</strong></div>';
+    if (r.best_window && r.best_window.bands) {
+      var b = r.best_window.bands;
+      html += '<div style="margin-top:8px;font-size:12px;color:var(--muted)">';
+      html += '<div>Chain ratio: ' + (b.chain_ratio || 0).toFixed(3) + '</div>';
+      html += '<div>Engine ratio: ' + (b.engine_ratio || 0).toFixed(3) + '</div>';
+      html += '<div>Mechanical ratio: ' + (b.mechanical_ratio || 0).toFixed(3) + '</div>';
+      html += '</div>';
+    }
+    result.innerHTML = html;
+    // Refresh status to update dashboard
+    refreshStatus();
+  }).catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = 'Detect Chainsaw';
+    result.innerHTML = '<div class="muted">Detection error: ' + e.message + '</div>';
+  });
+}
+
+function clearSelectedFile() {
+  var ctrl = $('fileControls');
+  var player = $('audioPlayer');
+  player.pause();
+  player.src = '';
+  player.style.display = 'none';
+  ctrl.style.display = 'none';
+  $('browsePathInput').value = '/home/betech/chainsaw_audio';
+  window._selectedAudioPath = null;
+  $('detectionResult').style.display = 'none';
+  $('playFileBtn').textContent = 'Play';
+}
+
+// Keep browseAudio as entry point for onclick
+
+async function shutdownRPi() {
+  var btn = document.activeElement;
+  var msg = document.getElementById('shutdownMsg');
+  if (!msg) return;
+  if (!confirm('Shutdown this RPi? The web GUI will go offline.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Shutting down...';
+  msg.innerHTML = '<span class="bad-text">Shutting down...</span>';
+  try {
+    var r = await fetch('/api/shutdown', {method:'POST', headers:{'Authorization':'Basic ' + btoa('betech:betech')}});
+    var d = await r.json();
+    if (d.ok) {
+      msg.innerHTML = '<span class="ok-text">Shutdown initiated. RPi will power off.</span>';
+    } else {
+      msg.innerHTML = '<span class="bad-text">Error: ' + (d.error || 'unknown') + '</span>';
+      btn.disabled = false;
+      btn.textContent = 'Shutdown Now';
+    }
+  } catch(e) {
+    msg.innerHTML = '<span class="bad-text">Request failed: ' + e.message + '</span>';
+    btn.disabled = false;
+    btn.textContent = 'Shutdown Now';
+  }
+}
