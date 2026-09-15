@@ -10,7 +10,7 @@
 - **Active branch:** codex/dres-icm-20260915
 - **Active worktree:** /Users/macbookm1max321tb/A_Design/A_Coding/centralized/adm-firenode-forest-monitoring
 - **Current task:** Establish baseline verification
-- **Last verified commit:** b18a690
+- **Last verified commit:** 8605ce3
 - **Last test result:** not run (adoption baseline); test command: (none detected)
 
 ## Known Issues
