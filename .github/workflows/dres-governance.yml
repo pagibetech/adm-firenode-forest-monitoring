@@ -1,0 +1,45 @@
+name: DRES governance
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dres-contract:
+    name: ICM and secret filename gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate ICM workbench
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d .icm
+          for required in \
+            .icm/ROUTER.md \
+            .icm/state/PROJECT_STATE.md \
+            .icm/memory/PROJECT_MEMORY.md \
+            .icm/decisions/DECISIONS.md \
+            .icm/checkpoints/CURRENT_CHECKPOINT.md \
+            .icm/handoffs/CURRENT_HANDOFF.md; do
+            test -f "$required"
+          done
+
+      - name: Reject tracked secret-like filenames
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '(^|/)(\.env($|\.)|id_(rsa|ed25519)(\.|$)|.*(client_secret|credentials).*\.json$|.*\.(pem|key)$)'; then
+            echo "Tracked secret-like filename detected."
+            exit 1
+          fi
+
